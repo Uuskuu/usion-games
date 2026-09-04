@@ -128,7 +128,7 @@ async function newPage(browser, opts) {
     await host.page.waitForTimeout(2900);                     // 3-2-1 countdown
     for (const p of peers) {
       if (p.page.url() && await p.page.$eval('#track', e => e.hidden)) fail('mp', 'race track hidden');
-      const seats = await p.page.$$eval('#track .trk', e => e.length);
+      const seats = await p.page.$$eval('#track .lane', e => e.length);
       if (seats !== 2) fail('mp', 'track rows=' + seats);
     }
     // both clients derived the same sentence queue from the host's seed
@@ -178,7 +178,7 @@ async function newPage(browser, opts) {
     await page.evaluate(() => openHall(null));
     await page.click('#botsBtn');
     await page.waitForTimeout(3200);                          // countdown
-    const seats = await page.$$eval('#track .trk', e => e.length);
+    const seats = await page.$$eval('#track .lane', e => e.length);
     if (seats !== 3) fail('bots', 'track rows=' + seats);
     await page.waitForTimeout(1500);
     const botMoved = await page.evaluate(() => Object.keys(R.bots).some(id => (R.prog[id] || {}).f > 0));

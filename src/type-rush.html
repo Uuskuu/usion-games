@@ -7,30 +7,66 @@
 <!--SDK-->
 <title>Хурдан бичээч · Type Rush</title>
 <style>/*SHARED_CSS*/
-/* ---- typing surface ---- */
-.typing{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
-.text{
-  -webkit-user-select:text;user-select:text;width:100%;flex:none;
-  background:var(--card);border:1px solid var(--line);border-radius:var(--r);
-  padding:20px 18px;min-height:132px;
-  font-size:clamp(19px,5.2vw,25px);line-height:1.65;letter-spacing:.1px;word-break:break-word;
+/* ---- race lanes (type-the-track) ---- */
+.track{display:flex;flex-direction:column;width:100%;flex:none;margin-bottom:12px;
+  border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:6px 10px}
+.lane{display:flex;align-items:center;gap:8px;height:38px}
+.road{position:relative;flex:1;height:100%;border-bottom:1px dashed var(--line2)}
+.lane:last-child .road{border-bottom:0}
+.road::after{
+  content:"";position:absolute;right:0;top:4px;bottom:5px;width:6px;opacity:.55;
+  background-image:linear-gradient(45deg,var(--muted) 25%,transparent 25%,transparent 75%,var(--muted) 75%),
+                   linear-gradient(45deg,var(--muted) 25%,transparent 25%,transparent 75%,var(--muted) 75%);
+  background-size:6px 6px;background-position:0 0,3px 3px;
 }
-.text span{border-radius:2px}
+.racer{
+  position:absolute;bottom:4px;left:calc(var(--f,0) * (100% - 92px));
+  display:flex;align-items:flex-end;gap:4px;transition:left .14s linear;
+}
+.rname{width:56px;text-align:right;font-size:10px;font-weight:800;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-bottom:4px}
+.lane.me .rname{color:var(--blue)}
+.car{font-size:22px;line-height:1;filter:grayscale(.35)}
+.lane.me .car{filter:none}
+.lane.done .car{animation:hop .5s ease-out}
+.lane.gone{opacity:.35}
+@keyframes hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-7px)}}
+.lwpm{width:52px;text-align:right;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--muted)}
+.lane.me .lwpm{color:var(--fg)}
+.racer .bub{left:auto;right:0;bottom:30px}
+/* ---- typing surface: the text IS the input ---- */
+.typebox{
+  position:relative;width:100%;flex:1 1 auto;max-height:min(42vh,300px);cursor:text;
+  background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);
+  padding:20px 18px;min-height:136px;transition:border-color .15s;
+}
+.typebox.on{border-color:var(--blue)}
+.text{
+  -webkit-user-select:none;user-select:none;white-space:pre-wrap;
+  font-size:clamp(19px,5.2vw,25px);line-height:1.6;letter-spacing:.1px;word-break:break-word;
+}
+.text span{border-radius:3px}
 .text .todo{color:var(--dim)}
 .text .ok{color:var(--fg)}
-.text .bad{color:var(--bad);background:rgba(239,68,68,.16);text-decoration:underline;text-underline-offset:3px}
+.text .w{background:rgba(255,255,255,.07)}
+:root[data-theme="light"] .text .w{background:rgba(0,0,0,.05)}
+.text .bad{color:var(--bad);background:rgba(239,68,68,.18);text-decoration:underline;text-underline-offset:3px}
 .text .cur{position:relative;color:var(--dim)}
 .text .cur::before{content:"";position:absolute;left:-2px;top:.12em;bottom:.12em;width:2px;background:var(--blue);border-radius:2px;animation:caret 1.05s steps(1) infinite}
 @keyframes caret{0%,50%{opacity:1}50.01%,100%{opacity:0}}
-/* ---- input ---- */
+/* the real input sits invisibly on top so the phone keyboard opens on tap */
 .inp{
-  width:100%;margin-top:12px;flex:none;height:54px;padding:0 16px;
-  background:var(--card);border:1.5px solid var(--line);color:var(--fg);border-radius:var(--r);
-  font-size:17px;font-weight:500;outline:none;transition:border-color .12s;
+  position:absolute;inset:0;width:100%;height:100%;padding:20px 18px;margin:0;
+  background:transparent;border:0;outline:none;resize:none;overflow:hidden;
+  color:transparent;caret-color:transparent;font-size:16px;font-family:inherit;line-height:1.6;
 }
-.inp:focus{border-color:var(--blue)}
-.inp.err{border-color:var(--bad);animation:shake .2s}
-.inp:disabled{opacity:.45}
+.inp::selection{background:transparent}
+.tap{
+  position:absolute;inset:auto 0 10px 0;text-align:center;pointer-events:none;
+  font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);
+}
+.typebox.on .tap{display:none}
+.typebox.err{border-color:var(--bad);animation:shake .2s}
 /* ---- clock + sentence progress ---- */
 .timerbar{width:100%;height:6px;background:var(--card);border-radius:999px;overflow:hidden;margin:14px 0 10px;flex:none}
 .timerbar i{display:block;height:100%;background:var(--fg);border-radius:999px;transition:width .22s linear,background .3s}
@@ -42,7 +78,8 @@
 .dots i.on{background:var(--fg)}
 .dots i.cur{background:var(--blue)}
 .prog{align-self:flex-end;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}
-.author{-webkit-user-select:text;user-select:text;color:var(--muted);font-size:12px;margin-top:9px;align-self:flex-end;font-style:italic}
+.author{color:var(--muted);font-size:12px;margin-top:9px;align-self:flex-end;font-style:italic}
+.typing{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
 </style>
 </head>
 <body>
@@ -64,9 +101,12 @@
   <div class="timerbar" id="tbarw"><i id="tbar" style="width:100%"></i></div>
   <div class="progrow"><div class="dots" id="dots"></div><div class="prog" id="prog"></div></div>
   <div class="typing">
-    <div class="text" id="text"></div>
+    <div class="typebox" id="typebox">
+      <div class="text" id="text"></div>
+      <input class="inp" id="inp" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="type here">
+      <div class="tap" id="tapHint" data-i18n="tapHint"></div>
+    </div>
     <div class="author" id="author"></div>
-    <input class="inp" id="inp" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-i18n-ph="ph">
   </div>
 </div>
 
@@ -141,12 +181,13 @@
 <script>/*SHARED_JS*/</script>
 <script>
 I18N.register({
-  mn:{title:'Хурдан бичээч',acc:'Нарийвчлал',time:'Цаг',start:'Эхлэх',again:'Дахин',settings:'Тохиргоо',ph:'Энд бич...',close:'Хаах',
+  mn:{title:'Хурдан бичээч',acc:'Нарийвчлал',time:'Цаг',start:'Эхлэх',again:'Дахин',settings:'Тохиргоо',close:'Хаах',
       rules:'Дэлгэц дээрх өгүүлбэрийг аль болох хурдан, зөв бич. Үг бүрийн дараа зай (space) дар. 5 өгүүлбэр, цаг хязгаартай.',
+      tapHint:'Дарж бичиж эхлээрэй',
       lvl:'Түвшин',l1:'Хялбар (90с)',l2:'Дунд (75с)',l3:'Хүнд (60с)',textLang:'Текстийн хэл',
       done:'Дууслаа! 🏁',timeUp:'Цаг дууслаа ⏱',
       result:'{w} WPM · {a}% нарийвчлал · {n}/{t} өгүүлбэр',newBest:'🎉 Шинэ дээд амжилт!',
-      sent:'Өгүүлбэр {i}/{t}',score:'оноо',
+      sent:'Өгүүлбэр {i}/{t}',score:'оноо',ghost:'Рекорд',
       recTitle:'Миний амжилтууд 🏆',recBest:'Дээд оноо',recWpm:'Дээд WPM',recAcc:'Дээд нарийвчлал',
       recRaces:'Уралдаан',recWins:'Ялалт',recSents:'Бичсэн өгүүлбэр',
       hall:'Хүлээх танхим',hallWait:'Бүгд бэлэн боллоо — эхлүүлээрэй!',hallNeed:'Найзаа урьж, бэлэн болохыг хүлээ.',
@@ -157,12 +198,13 @@ I18N.register({
       backHall:'Танхим руу',reconn:'Холболт тасарлаа',reconnMsg:'Дахин холбогдож байна…',
       chatPh:'Өөрийн үгээ бич…',invited:'Урилга илгээлээ',inviteFail:'Урих боломжгүй байна',
       joinedMsg:'{n} нэгдлээ',leftMsg:'{n} гарлаа',go:'ЭХЭЛ!',rush:'Эхнийх нь дууслаа — {n}с!'},
-  en:{title:'Type Rush',acc:'Accuracy',time:'Time',start:'Start',again:'Play again',settings:'Settings',ph:'Type here...',close:'Close',
+  en:{title:'Type Rush',acc:'Accuracy',time:'Time',start:'Start',again:'Play again',settings:'Settings',close:'Close',
       rules:'Type the sentence as fast and accurately as you can. Press space after each word. 5 sentences, limited time.',
+      tapHint:'Tap here to start typing',
       lvl:'Level',l1:'Easy (90s)',l2:'Medium (75s)',l3:'Hard (60s)',textLang:'Text language',
       done:'Finished! 🏁',timeUp:"Time's up ⏱",
       result:'{w} WPM · {a}% accuracy · {n}/{t} sentences',newBest:'🎉 New best score!',
-      sent:'Sentence {i}/{t}',score:'points',
+      sent:'Sentence {i}/{t}',score:'points',ghost:'Record',
       recTitle:'My records 🏆',recBest:'Best score',recWpm:'Best WPM',recAcc:'Best accuracy',
       recRaces:'Races',recWins:'Wins',recSents:'Sentences typed',
       hall:'Waiting hall',hallWait:'Everyone is ready — start the race!',hallNeed:'Invite a friend and wait for READY.',
@@ -179,47 +221,159 @@ const PHRASES={
   en:['Hi! 👋',"Let's go!",'So fast! 😲','Oops, typo 😅','Good game! 👏','Rematch!','One sec…','Nice! 🔥']
 };
 const BOTS=[['Бат',52],['Сараа',68],['Дорж',44],['Оюун',75]];
-// [text, source]
+const CARS=['🚗','🚙','🏎️','🚕','🚓','🛻'];
+
+// [text, source] — a wide pool per level so five sentences are never the same five twice
 const TEXTS={
   mn:{1:[
-    ['Эх орон минь миний хайр.','—'],['Ном бол мэдлэгийн түлхүүр.','—'],['Хүн ахтай, дээл захтай.','Зүйр үг'],['Усыг нь уувал ёсыг нь дага.','Зүйр үг'],['Эрдэм номтой хүн эрхэм.','Зүйр үг'],['Сайн хүн санаанаас.','Зүйр үг'],['Хөдөлмөр хүнийг сайхан болгодог.','—'],['Өнөөдөр тэнгэр цэлмэг байна.','—']],
+    ['Эх орон минь миний хайр.','—'],
+    ['Ном бол мэдлэгийн түлхүүр.','—'],
+    ['Хүн ахтай, дээл захтай.','Зүйр үг'],
+    ['Усыг нь уувал ёсыг нь дага.','Зүйр үг'],
+    ['Эрдэм номтой хүн эрхэм.','Зүйр үг'],
+    ['Сайн хүн санаанаас.','Зүйр үг'],
+    ['Хөдөлмөр хүнийг сайхан болгодог.','—'],
+    ['Өнөөдөр тэнгэр цэлмэг байна.','—'],
+    ['Цаг хугацаа хэнийг ч хүлээдэггүй.','—'],
+    ['Найз нөхөд бол хоёр дахь гэр бүл.','—'],
+    ['Сурах бол насан туршийн зам.','—'],
+    ['Өглөө эрт босвол өдөр урт.','—'],
+    ['Хэлсэндээ хүр, хийснээ дуусга.','—'],
+    ['Хаврын салхи хүйтэн ч нар дулаан.','—'],
+    ['Багаас сурсан зан хожим тус болдог.','—'],
+    ['Гэрийн эзэн зочиндоо хүндэтгэлтэй.','—'],
+    ['Уулын оргилоос хот жижиг харагдана.','—'],
+    ['Өвлийн шөнө од тод гэрэлтэнэ.','—']],
     2:[
-    ['Хүний муу бол хэлэхээр, өөрийн муу бол нуухаар.','Зүйр үг'],['Урт хоолой урагшаа, ухаантай хүн өөдөө.','Зүйр үг'],['Ажил хийвэл дуустал, давс хийвэл уустал.','Зүйр үг'],['Эр хүн зорьсондоо, эмэгтэй хүн эрхэлсэндээ.','Зүйр үг'],['Хэлсэн үг хэлээгүй үгнээс хүнд.','Зүйр үг'],['Мянган удаа сонсохоор нэг удаа харсан нь дээр.','Зүйр үг'],['Нохой хуцахаараа, хүн ярихаараа.','Зүйр үг'],['Хичээвэл хүн болно, хичээхгүй бол хүн болохгүй.','Зүйр үг']],
+    ['Хүний муу бол хэлэхээр, өөрийн муу бол нуухаар.','Зүйр үг'],
+    ['Урт хоолой урагшаа, ухаантай хүн өөдөө.','Зүйр үг'],
+    ['Ажил хийвэл дуустал, давс хийвэл уустал.','Зүйр үг'],
+    ['Эр хүн зорьсондоо, эмэгтэй хүн эрхэлсэндээ.','Зүйр үг'],
+    ['Хэлсэн үг хэлээгүй үгнээс хүнд.','Зүйр үг'],
+    ['Мянган удаа сонсохоор нэг удаа харсан нь дээр.','Зүйр үг'],
+    ['Нохой хуцахаараа, хүн ярихаараа.','Зүйр үг'],
+    ['Хичээвэл хүн болно, хичээхгүй бол хүн болохгүй.','Зүйр үг'],
+    ['Ганц модоор гал болдоггүй, ганц хүнээр хүрээ болдоггүй.','Зүйр үг'],
+    ['Ажилсаг хүнд азгүй өдөр байдаггүй гэж ярьдаг.','—'],
+    ['Тэвчээр бол амжилтад хүрэх хамгийн богино зам юм.','—'],
+    ['Мэдэхгүй байх нь ичгүүр биш, сурахгүй байх нь ичгүүр.','—'],
+    ['Хүн бүр өөрийн замыг өөрөө татаж, өөрөө туулдаг.','—'],
+    ['Билэг ухаан эрдэнэ, эрдэм ном далай гэдэг.','—'],
+    ['Аав ээжийн үгийг сонсох нь ухаантай хүний зан.','—'],
+    ['Өнөөдөр хийж чадах ажлаа маргааш руу бүү хойшлуул.','—'],
+    ['Алдаа хийхээс бүү ай, алдаагаа давтахаас ай.','—'],
+    ['Бага багаар цуглуулсан мэдлэг том хэрэг болдог.','—']],
     3:[
-    ['Эрдэмтэй хүн даруу, эрдэмгүй хүн ихэмсэг байдаг гэдгийг эртний мэргэд хэлсэн юм.','Мэргэн үг'],['Тэнгэрийн заяа, газрын хишиг гэдэг нь хөдөлмөрлөсөн хүнд л ирдэг гэж өвгөд хэлдэг.','Мэргэн үг'],['Өөрийгөө ялсан хүн мянган дайсныг ялснаас илүү хүчирхэг.','Мэргэн үг'],['Хуучин ном бүр шинэ уншигчдаа шинэ юм хэлдэг, шинэ уншигч бүр хуучин номоо шинээр нээдэг.','—'],['Уулын өндөрт бус, ухааны өндөрт хүрэхийг зорь.','Мэргэн үг'],['Сайн санаа сарнай цэцэг мэт хүнийг тойрон ургаж, муу санаа өргөст бут мэт өөрийгөө хатгадаг.','—']]},
+    ['Эрдэмтэй хүн даруу, эрдэмгүй хүн ихэмсэг байдаг гэдгийг эртний мэргэд хэлсэн юм.','Мэргэн үг'],
+    ['Тэнгэрийн заяа, газрын хишиг гэдэг нь хөдөлмөрлөсөн хүнд л ирдэг гэж өвгөд хэлдэг.','Мэргэн үг'],
+    ['Өөрийгөө ялсан хүн мянган дайсныг ялснаас илүү хүчирхэг гэж эртнээс ярьдаг.','Мэргэн үг'],
+    ['Хуучин ном бүр шинэ уншигчдаа шинэ юм хэлдэг, шинэ уншигч бүр хуучин номоо шинээр нээдэг.','—'],
+    ['Уулын өндөрт бус, ухааны өндөрт хүрэхийг зорих нь илүү үнэ цэнэтэй байдаг.','—'],
+    ['Сайн санаа сарнай цэцэг мэт хүнийг тойрон ургаж, муу санаа өргөст бут мэт өөрийгөө хатгадаг.','—'],
+    ['Хүн төрөлхтний хамгийн том нээлт бол өөрийн буруугаа хүлээн зөвшөөрч, дахин эхлэх зориг юм.','—'],
+    ['Мянган бээрийн зам ганц алхмаас эхэлдэг гэдгийг мартвал хамгийн ойрын зорилго ч хол мэт санагдана.','—'],
+    ['Түүх бол зөвхөн өнгөрсний тухай биш, өнөөдөр ямар шийдвэр гаргах тухай хичээл юм.','—'],
+    ['Сайн ном уншсан хүн олон амьдралыг туулж, огт уншаагүй хүн ганцхан амьдралаар хязгаарлагддаг.','—'],
+    ['Ажлаа хайрлаж хийвэл нэг ч өдөр ажилласан мэт санагдахгүй гэж мэргэд хэлдэг.','Мэргэн үг'],
+    ['Байгаль дэлхийгээ хайрлан хамгаалах нь ирээдүй хойч үедээ үлдээх хамгийн үнэтэй өв юм.','—']]},
   en:{1:[
-    ['Practice makes perfect.','Proverb'],['Time is money.','Proverb'],['Knowledge is power.','Francis Bacon'],['Stay hungry, stay foolish.','Steve Jobs'],['Less is more.','—'],['The sky is clear today.','—'],['Actions speak louder than words.','Proverb'],['Every day is a new start.','—']],
+    ['Practice makes perfect.','Proverb'],
+    ['Time is money.','Proverb'],
+    ['Knowledge is power.','Francis Bacon'],
+    ['Stay hungry, stay foolish.','Steve Jobs'],
+    ['Less is more.','—'],
+    ['The sky is clear today.','—'],
+    ['Actions speak louder than words.','Proverb'],
+    ['Every day is a new start.','—'],
+    ['The early bird catches the worm.','Proverb'],
+    ['Rome was not built in a day.','Proverb'],
+    ['Small steps still move you forward.','—'],
+    ['A calm mind types faster.','—'],
+    ['Great things take a little time.','—'],
+    ['Read more, worry less.','—'],
+    ['The best time to start is now.','—'],
+    ['Curiosity beats raw talent.','—'],
+    ['Somewhere, something incredible is waiting to be known.','Carl Sagan'],
+    ['Simplicity is the soul of efficiency.','Austin Freeman']],
     2:[
-    ['A journey of a thousand miles begins with a single step.','Lao Tzu'],['The only way to do great work is to love what you do.','Steve Jobs'],['Simplicity is the ultimate sophistication.','Leonardo da Vinci'],['Do not wait; the time will never be just right.','Napoleon Hill'],['Well done is better than well said.','Benjamin Franklin'],['Talk is cheap. Show me the code.','Linus Torvalds'],['The best way to predict the future is to invent it.','Alan Kay'],['Fall seven times and stand up eight.','Japanese proverb']],
+    ['A journey of a thousand miles begins with a single step.','Lao Tzu'],
+    ['The only way to do great work is to love what you do.','Steve Jobs'],
+    ['Simplicity is the ultimate sophistication.','Leonardo da Vinci'],
+    ['Do not wait; the time will never be just right.','Napoleon Hill'],
+    ['Well done is better than well said.','Benjamin Franklin'],
+    ['Talk is cheap. Show me the code.','Linus Torvalds'],
+    ['The best way to predict the future is to invent it.','Alan Kay'],
+    ['Fall seven times and stand up eight.','Japanese proverb'],
+    ['The secret of getting ahead is getting started.','Mark Twain'],
+    ['You miss one hundred percent of the shots you never take.','Wayne Gretzky'],
+    ['Quality is not an act, it is a habit.','Aristotle'],
+    ['Knowing yourself is the beginning of all wisdom.','Aristotle'],
+    ['Science is a way of thinking much more than it is a body of knowledge.','Carl Sagan'],
+    ['The computer was born to solve problems that did not exist before.','Bill Gates'],
+    ['A person who never made a mistake never tried anything new.','Albert Einstein'],
+    ['The way to get started is to quit talking and begin doing.','Walt Disney'],
+    ['If you want to go fast go alone, if you want to go far go together.','African proverb'],
+    ['Discipline is choosing what you want most over what you want now.','—']],
     3:[
-    ['Any sufficiently advanced technology is indistinguishable from magic.','Arthur C. Clarke'],['Programs must be written for people to read, and only incidentally for machines to execute.','Harold Abelson'],['It always seems impossible until it is done; then it seems like it was always inevitable.','—'],['The measure of intelligence is the ability to change when the world around you changes.','—'],['First, solve the problem. Then, write the code; premature optimization is the root of all evil.','John Johnson / Donald Knuth'],['Whether you think you can or you think you cannot, you are usually right.','Henry Ford']]}
+    ['Any sufficiently advanced technology is indistinguishable from magic.','Arthur C. Clarke'],
+    ['Programs must be written for people to read, and only incidentally for machines to execute.','Harold Abelson'],
+    ['It always seems impossible until it is done; then it seems like it was always inevitable.','—'],
+    ['The measure of intelligence is the ability to change when the world around you changes.','—'],
+    ['First, solve the problem. Then, write the code; premature optimization is the root of all evil.','John Johnson / Donald Knuth'],
+    ['Whether you think you can or you think you cannot, you are usually right.','Henry Ford'],
+    ['Success is not final, failure is not fatal: it is the courage to continue that counts.','Winston Churchill'],
+    ['The greatest glory in living lies not in never falling, but in rising every time we fall.','Nelson Mandela'],
+    ['We cannot solve our problems with the same thinking we used when we created them.','Albert Einstein'],
+    ['Everything should be made as simple as possible, but not simpler, and that is the hard part.','—'],
+    ['The people who are crazy enough to think they can change the world are the ones who do.','Rob Siltanen'],
+    ['If you cannot explain it simply, you do not understand it well enough to teach it.','—']]}
 };
 const LIMITS={1:90,2:75,3:60},SENTS=5,MAXW=250,GRACE=10;   // GRACE: seconds the rest get once someone finishes
 let lvl=1,tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0,best=0;
 let phase='boot';                       // 'solo' | 'hall' | 'race' | 'end'
 let joinedRoom=null,myReady=false,paintQ=false,overtime=0;
-const R={seed:0,pending:0,limit:90,lvl:1,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,hostLoop:null};
-const inp=$('#inp');
+const R={seed:0,pending:0,mp:false,limit:90,lvl:1,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
+const inp=$('#inp'),box=$('#typebox');
 
 /* ---------- guarded SDK calls (written literally so the publish pipeline detects multiplayer) ---------- */
 function rt(type,data){ try{ const p=Usion.game.realtime(type,data); if(p&&p.catch)p.catch(()=>{}); }catch(e){} }
 function act(type,data){ try{ return Promise.resolve(Usion.game.action(type,data)).catch(()=>null); }catch(e){ return Promise.resolve(null); } }
 
-/* ---------- deterministic queue: every client builds the same race from the host's seed ---------- */
+/* ---------- sentence picking ---------- */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function poolOf(lang,level){ return (TEXTS[lang]&&TEXTS[lang][level])||TEXTS.mn[1]; }
+/* multiplayer: everybody derives the same five from the host's seed */
 function seededQueue(seed,lang,level,n){
-  const src=(TEXTS[lang]&&TEXTS[lang][level])||TEXTS.mn[1],pool=src.slice(),r=mulberry32(seed>>>0);
+  const pool=poolOf(lang,level).slice(),r=mulberry32(seed>>>0);
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));const t=pool[i];pool[i]=pool[j];pool[j]=t;}
   return pool.slice(0,n);
+}
+/* solo: prefer sentences this player has not seen lately, so rounds keep feeling new */
+function freshQueue(lang,level,n){
+  const pool=poolOf(lang,level),key='seen'+lang+level;
+  let seen=Records.get(key,[]);
+  if(!Array.isArray(seen))seen=[];
+  let idxs=pool.map((_,i)=>i).filter(i=>seen.indexOf(i)<0);
+  if(idxs.length<n){ seen=[];idxs=pool.map((_,i)=>i); }
+  shuffle(idxs);
+  const pick=idxs.slice(0,n);
+  Records.d[key]=seen.concat(pick).slice(-Math.max(n,pool.length-n));
+  Records.save();
+  return pick.map(i=>pool[i]);
 }
 
 /* ---------- typing round ---------- */
 function render(){
-  const val=inp.value,el=$('#text');let html='';
+  const val=inp.value,el=$('#text');
+  const at=Math.min(val.length,target.length);
+  const ws=target.lastIndexOf(' ',Math.max(0,at-1))+1;         // current word, typeracer style
+  let we=target.indexOf(' ',at); if(we<0)we=target.length;
+  let html='';
   for(let i=0;i<target.length;i++){
-    const ch=target[i];let cls='todo';
-    if(i<val.length)cls=val[i]===ch?'ok':'bad';else if(i===val.length)cls='cur';
-    html+='<span class="'+cls+'">'+(ch===' '?'&nbsp;':ch.replace(/</g,'&lt;'))+'</span>';
+    const ch=target[i];
+    let cls=i<val.length?(val[i]===ch?'ok':'bad'):(i===val.length?'cur':'todo');
+    if(i>=ws&&i<we)cls+=' w';
+    html+='<span class="'+cls+'">'+(ch==='<'?'&lt;':ch)+'</span>';
   }
   el.innerHTML=html;
 }
@@ -242,29 +396,33 @@ function stats(){
 }
 function myFrac(){ return Math.min(1,(idx+(target.length?Math.min(1,inp.value.length/target.length):0))/SENTS); }
 inp.addEventListener('input',()=>{
-  if(!running)return;
+  if(!running){ inp.value='';return; }
   const v=inp.value,i=v.length-1;
   if(i>=0&&(inp._last||'').length<v.length){
     typedChars++;
-    if(v[i]!==target[i]){errors++;inp.classList.remove('err');void inp.offsetWidth;inp.classList.add('err');Sfx.bad();haptic(30);}
+    if(v[i]!==target[i]){ errors++;box.classList.remove('err');void box.offsetWidth;box.classList.add('err');Sfx.bad();haptic(30); }
     else correctChars++;
   }
   inp._last=v;render();stats();
   if(v===target){
     finished++;score+=Math.round(target.length*(1+Math.max(0,timeLeft)/R.limit));Sfx.ok();haptic(10);
     idx++;
-    if(idx>=SENTS){ if(mpLive())finishMine(); else end(true); }
+    if(idx>=SENTS){ if(R.mp)finishMine(); else end(true); }
     else load();
   }
   paintTrack();
 });
+/* the visible text IS the field: tapping it opens the keyboard */
+box.addEventListener('pointerdown',()=>{ if(running)setTimeout(focusInput,0); });
+inp.addEventListener('focus',()=>box.classList.add('on'));
+inp.addEventListener('blur',()=>box.classList.remove('on'));
+function focusInput(){ try{ inp.focus({preventScroll:true}); const n=inp.value.length;inp.setSelectionRange(n,n); }catch(e){} }
 
 function startRound(cfg){
-  R.limit=cfg.limit;R.lvl=cfg.lvl;R.tl=cfg.tl;R.seed=cfg.seed;R.ended=false;R.hostT=null;overtime=0;
+  R.limit=cfg.limit;R.lvl=cfg.lvl;R.tl=cfg.tl;R.seed=cfg.seed;R.mp=!!cfg.mp;R.ended=false;R.hostT=null;overtime=0;
   queue=cfg.queue;R.cum=[0];queue.forEach(q=>R.cum.push(R.cum[R.cum.length-1]+q[0].length));
   idx=0;typedChars=0;correctChars=0;errors=0;score=0;finished=0;timeLeft=cfg.limit;
-  hideOverlays();$('#track').hidden=!cfg.mp;
-  $('#tbarw').className='timerbar';
+  hideOverlays();$('#track').hidden=!R.seats.length;$('#tbarw').className='timerbar';
   inp.disabled=false;load();stats();$('#time').textContent=fmtTime(timeLeft);$('#tbar').style.width='100%';
   startT=performance.now();running=true;phase='race';
   clearInterval(timer);let last=performance.now();
@@ -277,26 +435,31 @@ function startRound(cfg){
     $('#tbar').style.width=frac*100+'%';
     $('#tbarw').className='timerbar'+(frac<=.12?' danger':(frac<=.33?' warn':''));
     if(timeLeft<=0){
-      if(!mpLive()||isHost())endRace(false);
+      if(!R.mp||isHost())endRace(false);
       else if((overtime+=dt)>6&&!R.ended)showRaceEnd(buildStandings(),null);   // host went dark
     }
   },200);
-  setTimeout(()=>{try{inp.focus();}catch(e){}},60);
+  clearInterval(R.loop);R.loop=setInterval(tick,66);
+  setTimeout(focusInput,60);
 }
 
-/* ---------- solo: instant play, zero taps (GameTok / Explore) ---------- */
+/* ---------- solo: instant play, you against your own record ---------- */
 function startSolo(){
   stopNetLoops();
-  R.seats=[];R.prog={};R.bots={};
-  startRound({queue:seededQueue((Date.now()^Math.floor(Math.random()*1e9))>>>0,tl,lvl,SENTS),
-              limit:LIMITS[lvl],lvl,tl,seed:0,mp:false});
+  R.bots={};R.prog={};R.seats=[Roster.myId];
+  const ghostWpm=Records.get('wpm');
+  if(ghostWpm>=15){                                   // a pace car set by your own best run
+    Roster.set('ghost',{name:I18N.t('ghost'),bot:true});Roster.present.ghost=true;
+    R.seats.push('ghost');R.bots.ghost={wpm:ghostWpm,chars:0,i:0,score:0,done:false,ms:0};
+  }
+  R.seats.forEach(id=>{ R.prog[id]={f:0,w:0,s:0,d:0,gone:false}; });
+  startRound({queue:freshQueue(tl,lvl,SENTS),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false});
 }
 
 /* ---------- multiplayer plumbing ---------- */
-function mpLive(){ return R.seats.length>0; }
 function isHost(){ return Roster.isHost(); }
 function humansHere(){ return Roster.here().filter(id=>!Roster.of(id).bot); }
-function stopNetLoops(){ clearInterval(R.sendT);clearInterval(R.hostLoop);R.sendT=null;R.hostLoop=null; }
+function stopNetLoops(){ clearInterval(R.sendT);clearInterval(R.loop);R.sendT=null;R.loop=null; }
 function myInfo(){
   let name='',avatar=null;
   try{name=Usion.user.getName()||'';}catch(e){}
@@ -343,7 +506,7 @@ function wireNet(){
       if(running)inp.disabled=down;
       if(!down){ shareInfo(); try{Usion.game.requestSync();}catch(e){} }
     });
-    Usion.game.onReconnected(()=>{ $('#netOv').hidden=true; if(running)inp.disabled=false; shareInfo(); });
+    Usion.game.onReconnected(()=>{ $('#netOv').hidden=true; if(running){inp.disabled=false;focusInput();} shareInfo(); });
   }catch(e){}
 }
 function onRealtime(m){
@@ -386,7 +549,7 @@ function onRealtime(m){
 /* ---------- waiting hall (the room the chat invite leads to) ---------- */
 function openHall(roomId){
   stopNetLoops();clearInterval(timer);running=false;
-  R.seats=[];R.prog={};R.bots={};R.pending=0;
+  R.seats=[];R.prog={};R.bots={};R.pending=0;R.mp=false;
   phase='hall';myReady=false;
   hideOverlays();$('#track').hidden=true;$('#hallOv').hidden=false;
   let rid=roomId;
@@ -453,7 +616,6 @@ function applyRaceStart(d){
   countdown(()=>{
     startRound({queue:seededQueue(d.seed,tl,lvl,SENTS),limit:d.limit||LIMITS[lvl],lvl,tl,seed:d.seed,mp:true});
     R.sendT=setInterval(sendMine,100);
-    if(isHost())R.hostLoop=setInterval(hostTick,66);     // 15 Hz host broadcast, never per frame
     paintTrack();updateChatBtn();
   });
 }
@@ -471,15 +633,18 @@ function sendMine(){
   const s=stats(),p=R.prog[Roster.myId]||(R.prog[Roster.myId]={});
   p.f=Math.max(p.f||0,myFrac());p.w=s.wpm;p.s=score;p.d=idx>=SENTS?1:0;
   if(!isHost())rt('prog',{f:+p.f.toFixed(3),w:s.wpm,s:score,d:p.d});
-  paintTrack();
 }
-function hostTick(){
-  const now=performance.now(),dt=Math.min(0.25,(now-(hostTick._t||now))/1000);
-  hostTick._t=now;
+/* one 15 Hz loop: steps the pace cars, and on the host broadcasts the whole field */
+function tick(){
+  const now=performance.now(),dt=Math.min(0.25,(now-(tick._t||now))/1000);
+  tick._t=now;
   for(const id in R.bots)stepBot(id,dt);
-  const rows=R.seats.map(id=>{ const p=R.prog[id]||{}; return[Math.round((p.f||0)*1000),Math.round(p.w||0),Math.round(p.s||0),p.d?1:0,p.gone?1:0]; });
-  rt('state',{t:+Math.max(0,timeLeft).toFixed(1),p:rows});
-  paintTrack();checkRaceEnd();
+  if(R.mp&&isHost()){
+    const rows=R.seats.map(id=>{ const p=R.prog[id]||{}; return[Math.round((p.f||0)*1000),Math.round(p.w||0),Math.round(p.s||0),p.d?1:0,p.gone?1:0]; });
+    rt('state',{t:+Math.max(0,timeLeft).toFixed(1),p:rows});
+  }
+  paintTrack();
+  if(R.mp&&isHost())checkRaceEnd();
 }
 function stepBot(id,dt){
   const b=R.bots[id],p=R.prog[id];
@@ -515,7 +680,7 @@ function buildStandings(){
 }
 function endRace(done){
   if(R.ended)return;
-  if(!mpLive()){ end(!!done); return; }           // solo round
+  if(!R.mp){ end(!!done); return; }               // solo round
   if(!isHost())return;                            // the host decides the winner, never a peer
   R.ended=true;
   const st=buildStandings(),win=st.length?st[0].id:null;
@@ -567,7 +732,7 @@ function saveRecords(s,wpm,acc,won,mp){
   if(wpm>0&&Records.best('wpm',wpm).better)hl.wpm=1;
   if(typedChars>=20&&Records.best('acc',acc).better)hl.acc=1;
   if(finished)Records.bump('sents',finished);
-  if(mp){ Records.bump('races'); if(won)hl.wins=1,Records.bump('wins'); }
+  if(mp){ Records.bump('races'); if(won){hl.wins=1;Records.bump('wins');} }
   best=bestScore();
   return hl;
 }
@@ -613,9 +778,9 @@ async function showRaceEnd(st,win){
   Board.render($('#lb'));
 }
 
-/* ---------- race track + chat bubbles ---------- */
+/* ---------- race lanes ---------- */
 function paintTrack(){
-  if(paintQ||!mpLive())return;
+  if(paintQ||!R.seats.length)return;
   paintQ=true;
   requestAnimationFrame(()=>{
     paintQ=false;
@@ -623,42 +788,46 @@ function paintTrack(){
     if(!el||el.hidden)return;
     if(el.childElementCount!==R.seats.length){
       el.innerHTML='';
-      R.seats.forEach(id=>{
-        const row=document.createElement('div');
-        row.className='trk'+(id===Roster.myId?' me':'');row.dataset.id=id;
-        row.appendChild(avatarEl(Roster.of(id)));
-        const nm=document.createElement('span');nm.className='tname';nm.textContent=Roster.of(id).name||I18N.t('lbPlayer');
-        const bw=document.createElement('i');bw.className='tbarw';bw.appendChild(document.createElement('b'));
-        const w=document.createElement('span');w.className='twpm';
-        row.append(nm,bw,w);el.appendChild(row);
+      R.seats.forEach((id,k)=>{
+        const lane=document.createElement('div');
+        lane.className='lane'+(id===Roster.myId?' me':'');lane.dataset.id=id;
+        const road=document.createElement('div');road.className='road';
+        const racer=document.createElement('div');racer.className='racer';
+        const nm=document.createElement('span');nm.className='rname';nm.textContent=Roster.of(id).name||I18N.t('lbPlayer');
+        const car=document.createElement('span');car.className='car';
+        car.textContent=id==='ghost'?'👻':CARS[k%CARS.length];
+        racer.append(nm,car);road.appendChild(racer);
+        const w=document.createElement('span');w.className='lwpm';
+        lane.append(road,w);el.appendChild(lane);
       });
     }
     R.seats.forEach((id,k)=>{
-      const row=el.children[k];if(!row)return;
+      const lane=el.children[k];if(!lane)return;
       const mine=id===Roster.myId;
       const p=mine?{f:myFrac(),w:+$('#wpm').textContent||0,d:idx>=SENTS?1:0}:(R.prog[id]||{});
-      row.querySelector('b').style.width=Math.round((p.f||0)*100)+'%';
-      row.querySelector('.twpm').textContent=p.gone?'—':Math.round(p.w||0);
-      row.classList.toggle('done',!!p.d);
-      row.classList.toggle('gone',!!p.gone);
+      lane.querySelector('.racer').style.setProperty('--f',Math.min(1,p.f||0));
+      lane.querySelector('.lwpm').textContent=p.gone?'—':Math.round(p.w||0);
+      lane.classList.toggle('done',!!p.d);
+      lane.classList.toggle('gone',!!p.gone);
     });
   });
 }
 Chat.render=function(id,phrase){
   const el=$('#track');
   if(!el||el.hidden)return;
-  const row=Array.prototype.find.call(el.children,c=>c.dataset.id===id);
-  if(!row)return;
-  const old=row.querySelector('.bub');if(old)old.remove();
+  const lane=Array.prototype.find.call(el.children,c=>c.dataset.id===id);
+  if(!lane)return;
+  const racer=lane.querySelector('.racer'),old=racer.querySelector('.bub');
+  if(old)old.remove();
   const b=document.createElement('div');b.className='bub';b.textContent=phrase;   // textContent: peers can send anything
-  row.appendChild(b);
+  racer.appendChild(b);
   setTimeout(()=>b.remove(),2200);
 };
 function openChat(){
   const el=$('#phrases');el.innerHTML='';
   (PHRASES[I18N.lang]||PHRASES.mn).forEach(p=>{
     const b=document.createElement('button');b.textContent=p;
-    b.onclick=()=>{ Chat.send(p);$('#chatSheet').hidden=true; };
+    b.onclick=()=>{ Chat.send(p);$('#chatSheet').hidden=true;focusInput(); };
     el.appendChild(b);
   });
   $('#chatInp').value='';$('#chatSheet').hidden=false;
@@ -705,8 +874,8 @@ $('#readyBtn').onclick=()=>{ myReady=!myReady;Sfx.tick();shareInfo(); };
 $('#startBtn').onclick=()=>{ if(isHost()&&Roster.allReady())hostStart(false); };
 $('#botsBtn').onclick=()=>{ if(isHost())hostStart(true); };
 $('#chatBtn').onclick=openChat;
-$('#chatSheet').onclick=e=>{ if(e.target.id==='chatSheet')$('#chatSheet').hidden=true; };
-$('#chatSend').onclick=()=>{ if(Chat.send($('#chatInp').value)){ $('#chatInp').value='';$('#chatSheet').hidden=true; } };
+$('#chatSheet').onclick=e=>{ if(e.target.id==='chatSheet'){$('#chatSheet').hidden=true;focusInput();} };
+$('#chatSend').onclick=()=>{ if(Chat.send($('#chatInp').value)){ $('#chatInp').value='';$('#chatSheet').hidden=true;focusInput(); } };
 $('#chatInp').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#chatSend').click(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape')$('#chatSheet').hidden=true; });
 window.addEventListener('langchange',()=>{
