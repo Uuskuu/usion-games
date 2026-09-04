@@ -83,6 +83,7 @@ async function newPage(browser, opts) {
     if (title !== 'Type Rush') fail('solo', 'i18n toggle: ' + title);
     await page.screenshot({ path: 'shots/type-rush-3-records.png' });
     await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+    await page.waitForTimeout(300);                           // let the colour transitions settle
     await page.screenshot({ path: 'shots/type-rush-4-light.png' });
     if (errors.length) fail('solo', 'console: ' + errors.join(' | ').slice(0, 300));
     if (!failures) ok('solo', `submits=${JSON.stringify(calls.filter(c => c[0] === 'submit').map(c => c[1]))} best=${best}`);

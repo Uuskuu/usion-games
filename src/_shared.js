@@ -64,6 +64,10 @@ const Board = {
   async submit(score, meta) {
     try { return await Usion.leaderboard.submit(score, meta); } catch (e) { return null; }
   },
+  /* the platform IS the record book: {score, rank, total} for this player, null outside the host */
+  async me() {
+    try { const m = await Usion.leaderboard.me(); return (m && typeof m.score === 'number') ? m : null; } catch (e) { return null; }
+  },
   /* container gets a Friends/Global toggle + list. lowerIsBetter only affects formatting. */
   async render(container, fmt) {
     fmt = fmt || (v => v);
