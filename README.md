@@ -1,17 +1,33 @@
-# Usion mini-games — 5 насны бүлэгт зориулсан тоглоом
+# Usion mini-games — Type Rush
 
 | Нас | Тоглоом | Хавтас | Leaderboard |
 |-----|---------|--------|-------------|
-| 10–20 | Өнгө хурд · Color Dash (Stroop рефлекс, 60с, 3 горим) | `dist/color-dash/` | оноо, desc |
-| 20–30 | Хурдан бичээч · Type Rush (зүйр үг / quotes бичих уралдаан, WPM) | `dist/type-rush/` | оноо, desc |
-| 30–40 | Зурган логик · Nonogram (5×5 / 7×7 / 10×10) | `dist/nonogram/` | 10×10 секунд, **asc** |
-| 40–50 | Хос олох · Pair Match (Монгол сэдэвт санах ойн тоглоом) | `dist/pair-match/` | оноо, desc |
-| 50–60 | Судоку · Sudoku (уникал шийдтэй generator, тэмдэглэл, авто-хадгалалт) | `dist/sudoku/` | оноо, desc |
+| 20–30 | Хурдан бичээч · Type Rush (зүйр үг / quotes бичих уралдаан, WPM, 2–6 хүн live race) | `dist/type-rush/` | оноо, desc |
 
-Бүгд: нэг `index.html` (CSS/JS inline, CDN-гүй), Монгол/Англи хэл (`Usion.getLanguage()` + toggle),
+Нэг `index.html` (CSS/JS inline, CDN-гүй), Монгол/Англи хэл (`Usion.getLanguage()` + toggle),
 light/dark theme (`Usion.getTheme()`), `mode:'single'`-д **шууд эхэлдэг** (меню байхгүй),
 game over бүрт `Usion.leaderboard.submit()` + Найзууд/Глобал самбар, `Usion.storage`-д тохиргоо/явц хадгалдаг,
 "game is not a web page" reset (selection/zoom/rubber-band хаасан).
+
+## Горимууд
+
+**Ганцаараа (`mode:'single'`, GameTok/Explore)** — нээмэгц шууд эхэлдэг. 5 өгүүлбэр, цаг хязгаартай,
+эцэст нь оноо, WPM, нарийвчлал + **дээд амжилтын самбар** (🏆 товч): дээд оноо, дээд WPM,
+дээд нарийвчлал, бичсэн өгүүлбэр, уралдааны тоо, ялалт — `Usion.storage`-д хадгалагдаж,
+`Usion.leaderboard.submit()`-ээр Game Center-т ордог ("найз чиний рекордыг давлаа" мэдэгдэл эндээс гарна).
+
+**Найзуудтай (`mode:'multiplayer'`, чат урилга)** — **хүлээх танхим**: хэн ирсэн, тус бүр READY,
+хост л эхлүүлнэ (доод тал нь 2 хүн), `Usion.game.invite()`-ээр платформын найз сонгогч нээгдэнэ,
+хэн ч ирэхгүй бол "Ботуудтай" гарц. Дараа нь 3-2-1 тоолол → **live race**: бүгд ижил өгүүлбэрүүдийг
+(хостын seed-ээс гаралтай) бичиж, дэлгэц дээр тус бүрийн явц/WPM бар-аар харагдана.
+Эхнийх нь дуусмагц бусдад 10 секундын эцсийн боломж өгөөд уралдаан дуусна.
+
+Техникийн тал: хост эрхтэй (`playerIds[0]`) — 15 Гц-ээр `realtime('state')` цацаж, ялагчийг шийдэж,
+`Usion.game.reportResult()`-ээр чатад дүнгийн карт илгээнэ. Уралдааны эхлэл нь `action('race_start')`
+(sequenced + stored) тул дахин холбогдоход sync-ээс сэргээгддэг. Тоглогч бүр өөрийн оноогоо
+leaderboard-д илгээнэ. Тоглоом дотор **шуурхай чат** (8 бэлэн хэллэг + өөрөө бичих) —
+`realtime('quick_chat')`-аар, дэлгэц дээр богино bubble болж харагдана.
+Холболт тасрахад "Дахин холбогдож байна…" overlay, гарсан тоглогчид 20с grace.
 
 ## Бүтэц
 
@@ -51,6 +67,5 @@ NODE_PATH=$(npm root -g) node test.js # тест (playwright шаардлага�
 
 ## Дараагийн шат (санал)
 
-- Type Rush, Color Dash → multiplayer race (waiting hall + `Usion.game.realtime`, skill-ийн Step 3.5 checklist).
-- Nonogram — гараар зурсан puzzle багц (одоо random generator).
-- Type Rush — өгүүлбэрийн санг `Usion.cloud.shared`-аас татах.
+- Өгүүлбэрийн санг `Usion.cloud.shared`-аас татаж, тогтмол шинэчлэх.
+- Rating board (`mode:"rating"`) — уралдааны ELO зэрэглэл.

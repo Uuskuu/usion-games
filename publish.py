@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Register / update the 5 games in the Usion service registry (Path C, API token).
+"""Register / update the games in the Usion service registry (Path C, API token).
 
 Usage (run on YOUR machine, the token never goes into the repo):
   export USION_API_TOKEN=usion_sk_...          # Service Creator -> Agent API Access
@@ -7,9 +7,11 @@ Usage (run on YOUR machine, the token never goes into the repo):
   export USION_API_URL=https://mobile.mongolai.mn   # optional, default shown
   python3 publish.py               # register all (skips ones already registered by name -> updates them)
   python3 publish.py --dry-run     # print payloads only
-  python3 publish.py --only sudoku # one game
+  python3 publish.py --only type-rush # one game
 """
 import json, os, sys, urllib.request, urllib.error
+try: sys.stdout.reconfigure(encoding='utf-8', errors='replace')   # Windows consoles default to cp1252
+except Exception: pass
 
 API = os.environ.get('USION_API_URL', 'https://mobile.mongolai.mn').rstrip('/')
 TOKEN = os.environ.get('USION_API_TOKEN')
@@ -30,7 +32,7 @@ def req(method, path, body=None):
 def main():
     if not DRY and (not TOKEN or not BASE):
         sys.exit('Set USION_API_TOKEN and USION_BASE_URL (or use --dry-run).')
-    games = json.load(open(os.path.join(os.path.dirname(__file__), 'games.json')))
+    games = json.load(open(os.path.join(os.path.dirname(__file__), 'games.json'), encoding='utf-8'))
     existing = {}
     if not DRY:
         st, mine = req('GET', '/registry/services/my')
@@ -47,7 +49,10 @@ def main():
             'service_type': 'game',
             'iframe_url': f"{BASE or 'https://HOST'}/{g['slug']}/",
             'cost': 0,
-            'tags': ['game', 'iframe', 'single'],
+            'tags': ['game', 'iframe', 'multiplayer'],
+            'min_players': 1,
+            'max_players': g.get('max_players', 6),
+            'realtime': {'connection_mode': 'platform', 'connection_transport': 'websocket'},
             'is_published': True,
             'guest_access': 'full',
             'leaderboard': g['leaderboard'],

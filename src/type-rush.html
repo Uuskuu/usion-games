@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="usion:leaderboard" content="desc">
 <!--SDK-->
 <title>Хурдан бичээч · Type Rush</title>
 <style>/*SHARED_CSS*/
@@ -15,15 +16,25 @@
 .inp{width:100%;margin-top:12px;background:var(--card2);border:2px solid var(--line);color:var(--fg);border-radius:14px;padding:14px;font-size:18px;outline:none}
 .inp:focus{border-color:var(--blue)}
 .inp.err{border-color:var(--bad);animation:shake .2s}
+.inp:disabled{opacity:.5}
 .timerbar{width:100%;height:8px;background:var(--card);border-radius:999px;overflow:hidden;margin:12px 0 6px}
 .timerbar i{display:block;height:100%;background:var(--fg);transition:width .25s linear}
 .prog{color:var(--muted);font-size:13px;align-self:flex-end}
 .author{color:var(--muted);font-size:13px;margin-top:6px;align-self:flex-end;font-style:italic}
+.trk.gone{opacity:.45}
 </style>
 </head>
 <body>
-<div class="topbar"><h1 data-i18n="title"></h1><button id="setBtn" class="tb">⚙</button><button id="sfxBtn" class="tb"></button><button id="langBtn" class="tb"></button></div>
+<div class="topbar">
+  <h1 data-i18n="title"></h1>
+  <button id="chatBtn" class="tb" hidden>💬</button>
+  <button id="recBtn" class="tb">🏆</button>
+  <button id="setBtn" class="tb">⚙</button>
+  <button id="sfxBtn" class="tb"></button>
+  <button id="langBtn" class="tb"></button>
+</div>
 <div class="wrap">
+  <div class="track" id="track" hidden></div>
   <div class="stats">
     <div class="stat"><div class="l">WPM</div><div class="v" id="wpm">0</div></div>
     <div class="stat"><div class="l" data-i18n="acc"></div><div class="v" id="acc">100%</div></div>
@@ -36,6 +47,7 @@
   <input class="inp" id="inp" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-i18n-ph="ph">
 </div>
 
+<div class="cdown" id="cdown" hidden></div>
 
 <div class="overlay" id="menuOv" hidden>
   <div class="panel">
@@ -53,34 +65,97 @@
       <button class="chip" data-tl="en">English</button>
     </div>
     <button class="btn" id="menuStart" data-i18n="start"></button>
+    <div class="row" style="margin-top:8px"><button class="btn sec" id="menuInvite" data-i18n="invite"></button></div>
   </div>
 </div>
+
+<div class="overlay" id="recOv" hidden>
+  <div class="panel">
+    <h2 data-i18n="recTitle"></h2>
+    <div class="recs" id="recGrid"></div>
+    <div class="lb" id="recLb"></div>
+    <div class="row"><button class="btn" id="recInvite" data-i18n="invite"></button><button class="btn sec" id="recClose" data-i18n="close"></button></div>
+  </div>
+</div>
+
+<div class="overlay" id="hallOv" hidden>
+  <div class="panel">
+    <h2 data-i18n="hall"></h2>
+    <p id="hallHint"></p>
+    <div class="roster" id="roster"></div>
+    <div class="muted" id="hallLvlLabel" data-i18n="lvl"></div>
+    <div class="chips" id="hallLvl">
+      <button class="chip on" data-lvl="1" data-i18n="l1"></button>
+      <button class="chip" data-lvl="2" data-i18n="l2"></button>
+      <button class="chip" data-lvl="3" data-i18n="l3"></button>
+    </div>
+    <div class="row"><button class="btn" id="readyBtn"></button><button class="btn sec" id="inviteBtn" data-i18n="invite"></button></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="startBtn" data-i18n="startRace"></button><button class="btn sec" id="botsBtn" data-i18n="withBots"></button></div>
+  </div>
+</div>
+
 <div class="overlay" id="endOv" hidden>
   <div class="panel">
     <h2 id="endTitle"></h2>
     <div class="big" id="finalScore">0</div>
     <p id="endMsg"></p>
+    <div class="roster" id="standings" hidden></div>
+    <div class="recs" id="endRecs"></div>
     <div class="lb" id="lb"></div>
-    <div class="row"><button class="btn" id="againBtn" data-i18n="again"></button><button class="btn sec" id="menuBtn2" data-i18n="settings"></button></div>
+    <div class="row"><button class="btn" id="againBtn" data-i18n="again"></button><button class="btn sec" id="endInvite" data-i18n="invite"></button><button class="btn sec" id="menuBtn2" data-i18n="settings"></button></div>
+  </div>
+</div>
+
+<div class="overlay" id="netOv" hidden><div class="panel"><h2 data-i18n="reconn"></h2><p data-i18n="reconnMsg"></p></div></div>
+
+<div class="sheet" id="chatSheet" hidden>
+  <div class="sheetbox">
+    <div class="phr" id="phrases"></div>
+    <div class="chatrow"><input id="chatInp" maxlength="60" autocomplete="off" data-i18n-ph="chatPh"><button class="btn sm" id="chatSend">➤</button></div>
   </div>
 </div>
 
 <script>/*SHARED_JS*/</script>
 <script>
 I18N.register({
-  mn:{title:'Хурдан бичээч',acc:'Нарийвчлал',time:'Цаг',start:'Эхлэх',again:'Дахин',settings:'Тохиргоо',ph:'Энд бич...',
+  mn:{title:'Хурдан бичээч',acc:'Нарийвчлал',time:'Цаг',start:'Эхлэх',again:'Дахин',settings:'Тохиргоо',ph:'Энд бич...',close:'Хаах',
       rules:'Дэлгэц дээрх өгүүлбэрийг аль болох хурдан, зөв бич. Үг бүрийн дараа зай (space) дар. 5 өгүүлбэр, цаг хязгаартай.',
       lvl:'Түвшин',l1:'Хялбар (90с)',l2:'Дунд (75с)',l3:'Хүнд (60с)',textLang:'Текстийн хэл',
       done:'Дууслаа! 🏁',timeUp:'Цаг дууслаа ⏱',
       result:'{w} WPM · {a}% нарийвчлал · {n}/{t} өгүүлбэр',newBest:'🎉 Шинэ дээд амжилт!',
-      shareText:'Хурдан бичээч: {s} оноо, {w} WPM! Чи хурдан уу? ⌨️⚡',sent:'Өгүүлбэр {i}/{t}',score:'оноо'},
-  en:{title:'Type Rush',acc:'Accuracy',time:'Time',start:'Start',again:'Play again',settings:'Settings',ph:'Type here...',
+      sent:'Өгүүлбэр {i}/{t}',score:'оноо',
+      recTitle:'Миний амжилтууд 🏆',recBest:'Дээд оноо',recWpm:'Дээд WPM',recAcc:'Дээд нарийвчлал',
+      recRaces:'Уралдаан',recWins:'Ялалт',recSents:'Бичсэн өгүүлбэр',
+      hall:'Хүлээх танхим',hallWait:'Бүгд бэлэн боллоо — эхлүүлээрэй!',hallNeed:'Найзаа урьж, бэлэн болохыг хүлээ.',
+      hallGuest:'Хост эхлүүлэхийг хүлээж байна…',
+      ready:'Бэлэн ✓',notReady:'Бэлэн үү?',invite:'Найз урих',withBots:'Ботуудтай',startRace:'Уралдаан эхлүүлэх',
+      needTwo:'Дор хаяж 2 тоглогч бэлэн байх ёстой.',tagHost:'Хост',tagYou:'Чи',tagBot:'Бот',tagLeft:'Гарсан',
+      waitOthers:'Бусдыг хүлээж байна…',won:'🥇 Түрүүллээ!',placeN:'{p}-р байр',mpResult:'{w} WPM · {a}% · {n} оноо',
+      backHall:'Танхим руу',reconn:'Холболт тасарлаа',reconnMsg:'Дахин холбогдож байна…',
+      chatPh:'Өөрийн үгээ бич…',invited:'Урилга илгээлээ',inviteFail:'Урих боломжгүй байна',
+      joinedMsg:'{n} нэгдлээ',leftMsg:'{n} гарлаа',go:'ЭХЭЛ!',rush:'Эхнийх нь дууслаа — {n}с!'},
+  en:{title:'Type Rush',acc:'Accuracy',time:'Time',start:'Start',again:'Play again',settings:'Settings',ph:'Type here...',close:'Close',
       rules:'Type the sentence as fast and accurately as you can. Press space after each word. 5 sentences, limited time.',
       lvl:'Level',l1:'Easy (90s)',l2:'Medium (75s)',l3:'Hard (60s)',textLang:'Text language',
       done:'Finished! 🏁',timeUp:"Time's up ⏱",
       result:'{w} WPM · {a}% accuracy · {n}/{t} sentences',newBest:'🎉 New best score!',
-      shareText:'Type Rush: {s} points, {w} WPM! Are you faster? ⌨️⚡',sent:'Sentence {i}/{t}',score:'points'}
+      sent:'Sentence {i}/{t}',score:'points',
+      recTitle:'My records 🏆',recBest:'Best score',recWpm:'Best WPM',recAcc:'Best accuracy',
+      recRaces:'Races',recWins:'Wins',recSents:'Sentences typed',
+      hall:'Waiting hall',hallWait:'Everyone is ready — start the race!',hallNeed:'Invite a friend and wait for READY.',
+      hallGuest:'Waiting for the host to start…',
+      ready:'Ready ✓',notReady:'Ready?',invite:'Invite friends',withBots:'With bots',startRace:'Start race',
+      needTwo:'At least 2 players must be ready.',tagHost:'Host',tagYou:'You',tagBot:'Bot',tagLeft:'Left',
+      waitOthers:'Waiting for the others…',won:'🥇 You won!',placeN:'{p}. place',mpResult:'{w} WPM · {a}% · {n} points',
+      backHall:'Back to hall',reconn:'Connection lost',reconnMsg:'Reconnecting…',
+      chatPh:'Type your own…',invited:'Invites sent',inviteFail:"Can't invite here",
+      joinedMsg:'{n} joined',leftMsg:'{n} left',go:'GO!',rush:'First one home — {n}s left!'}
 });
+const PHRASES={
+  mn:['Сайн уу! 👋','Эхэлцгээе!','Хурдан байна! 😲','Өө, алдлаа 😅','Сайн тоглолоо! 👏','Дахиад нэг!','Түр хүлээгээрэй…','Гоё! 🔥'],
+  en:['Hi! 👋',"Let's go!",'So fast! 😲','Oops, typo 😅','Good game! 👏','Rematch!','One sec…','Nice! 🔥']
+};
+const BOTS=[['Бат',52],['Сараа',68],['Дорж',44],['Оюун',75]];
 // [text, source]
 const TEXTS={
   mn:{1:[
@@ -96,12 +171,28 @@ const TEXTS={
     3:[
     ['Any sufficiently advanced technology is indistinguishable from magic.','Arthur C. Clarke'],['Programs must be written for people to read, and only incidentally for machines to execute.','Harold Abelson'],['It always seems impossible until it is done; then it seems like it was always inevitable.','—'],['The measure of intelligence is the ability to change when the world around you changes.','—'],['First, solve the problem. Then, write the code; premature optimization is the root of all evil.','John Johnson / Donald Knuth'],['Whether you think you can or you think you cannot, you are usually right.','Henry Ford']]}
 };
-const LIMITS={1:90,2:75,3:60},SENTS=5;
-let lvl=1,tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0;
+const LIMITS={1:90,2:75,3:60},SENTS=5,MAXW=250,GRACE=10;   // GRACE: seconds the rest get once someone finishes
+let lvl=1,tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0,best=0;
+let phase='boot';                       // 'solo' | 'hall' | 'race' | 'end'
+let joinedRoom=null,myReady=false,paintQ=false,overtime=0;
+const R={seed:0,pending:0,limit:90,lvl:1,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,hostLoop:null};
 const inp=$('#inp');
 
+/* ---------- guarded SDK calls (written literally so the publish pipeline detects multiplayer) ---------- */
+function rt(type,data){ try{ const p=Usion.game.realtime(type,data); if(p&&p.catch)p.catch(()=>{}); }catch(e){} }
+function act(type,data){ try{ return Promise.resolve(Usion.game.action(type,data)).catch(()=>null); }catch(e){ return Promise.resolve(null); } }
+
+/* ---------- deterministic queue: every client builds the same race from the host's seed ---------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function seededQueue(seed,lang,level,n){
+  const src=(TEXTS[lang]&&TEXTS[lang][level])||TEXTS.mn[1],pool=src.slice(),r=mulberry32(seed>>>0);
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));const t=pool[i];pool[i]=pool[j];pool[j]=t;}
+  return pool.slice(0,n);
+}
+
+/* ---------- typing round ---------- */
 function render(){
-  const val=inp.value;const el=$('#text');let html='';
+  const val=inp.value,el=$('#text');let html='';
   for(let i=0;i<target.length;i++){
     const ch=target[i];let cls='todo';
     if(i<val.length)cls=val[i]===ch?'ok':'bad';else if(i===val.length)cls='cur';
@@ -110,51 +201,474 @@ function render(){
   el.innerHTML=html;
 }
 function load(){
-  const [t,a]=queue[idx];target=t;$('#author').textContent=a&&a!=='—'?'— '+a:'';inp.value='';render();
+  const q=queue[idx];target=q[0];$('#author').textContent=q[1]&&q[1]!=='—'?'— '+q[1]:'';
+  inp.value='';inp._last='';render();
   $('#prog').textContent=I18N.t('sent',{i:idx+1,t:SENTS});
 }
 function stats(){
   const el=(performance.now()-startT)/60000;
-  const wpm=el>0?Math.round((correctChars/5)/el):0;
+  const wpm=el>0?Math.min(MAXW,Math.round((correctChars/5)/el)):0;
   const acc=typedChars?Math.max(0,Math.round((typedChars-errors)/typedChars*100)):100;
-  $('#wpm').textContent=wpm;$('#acc').textContent=acc+'%';return {wpm,acc};
+  $('#wpm').textContent=wpm;$('#acc').textContent=acc+'%';return{wpm,acc};
 }
+function myFrac(){ return Math.min(1,(idx+(target.length?Math.min(1,inp.value.length/target.length):0))/SENTS); }
 inp.addEventListener('input',()=>{
   if(!running)return;
-  const v=inp.value;
-  const i=v.length-1;
-  if(i>=0&&(inp._last||'').length<v.length){typedChars++;if(v[i]!==target[i]){errors++;inp.classList.remove('err');void inp.offsetWidth;inp.classList.add('err');Sfx.bad();haptic(30);}else{correctChars++;}}
+  const v=inp.value,i=v.length-1;
+  if(i>=0&&(inp._last||'').length<v.length){
+    typedChars++;
+    if(v[i]!==target[i]){errors++;inp.classList.remove('err');void inp.offsetWidth;inp.classList.add('err');Sfx.bad();haptic(30);}
+    else correctChars++;
+  }
   inp._last=v;render();stats();
-  if(v===target){finished++;score+=Math.round(target.length*(1+Math.max(0,timeLeft)/LIMITS[lvl]));Sfx.ok();haptic(10);idx++;if(idx>=SENTS)end(true);else load();}
+  if(v===target){
+    finished++;score+=Math.round(target.length*(1+Math.max(0,timeLeft)/R.limit));Sfx.ok();haptic(10);
+    idx++;
+    if(idx>=SENTS){ if(mpLive())finishMine(); else end(true); }
+    else load();
+  }
+  paintTrack();
 });
-function start(){
-  const pool=shuffle(TEXTS[tl][lvl].slice());queue=pool.slice(0,SENTS);idx=0;typedChars=0;correctChars=0;errors=0;score=0;finished=0;
-  timeLeft=LIMITS[lvl];running=true;$('#menuOv').hidden=true;$('#endOv').hidden=true;inp._last='';
-  load();startT=performance.now();inp.focus();
+
+function startRound(cfg){
+  R.limit=cfg.limit;R.lvl=cfg.lvl;R.tl=cfg.tl;R.seed=cfg.seed;R.ended=false;R.hostT=null;overtime=0;
+  queue=cfg.queue;R.cum=[0];queue.forEach(q=>R.cum.push(R.cum[R.cum.length-1]+q[0].length));
+  idx=0;typedChars=0;correctChars=0;errors=0;score=0;finished=0;timeLeft=cfg.limit;
+  hideOverlays();$('#track').hidden=!cfg.mp;
+  inp.disabled=false;load();stats();$('#time').textContent=fmtTime(timeLeft);$('#tbar').style.width='100%';
+  startT=performance.now();running=true;phase='race';
   clearInterval(timer);let last=performance.now();
-  timer=setInterval(()=>{const n=performance.now();timeLeft-=(n-last)/1000;last=n;$('#time').textContent=fmtTime(timeLeft);$('#tbar').style.width=Math.max(0,timeLeft/LIMITS[lvl]*100)+'%';if(timeLeft<=0)end(false);},200);
+  timer=setInterval(()=>{
+    const n=performance.now(),dt=(n-last)/1000;last=n;
+    if(R.hostT!==null&&Date.now()-R.hostTAt<2500)timeLeft=Math.max(0,R.hostT-(Date.now()-R.hostTAt)/1000);
+    else timeLeft-=dt;
+    $('#time').textContent=fmtTime(timeLeft);
+    $('#tbar').style.width=Math.max(0,timeLeft/R.limit*100)+'%';
+    if(timeLeft<=0){
+      if(!mpLive()||isHost())endRace(false);
+      else if((overtime+=dt)>6&&!R.ended)showRaceEnd(buildStandings(),null);   // host went dark
+    }
+  },200);
+  setTimeout(()=>{try{inp.focus();}catch(e){}},60);
+}
+
+/* ---------- solo: instant play, zero taps (GameTok / Explore) ---------- */
+function startSolo(){
+  stopNetLoops();
+  R.seats=[];R.prog={};R.bots={};
+  startRound({queue:seededQueue((Date.now()^Math.floor(Math.random()*1e9))>>>0,tl,lvl,SENTS),
+              limit:LIMITS[lvl],lvl,tl,seed:0,mp:false});
+}
+
+/* ---------- multiplayer plumbing ---------- */
+function mpLive(){ return R.seats.length>0; }
+function isHost(){ return Roster.isHost(); }
+function humansHere(){ return Roster.here().filter(id=>!Roster.of(id).bot); }
+function stopNetLoops(){ clearInterval(R.sendT);clearInterval(R.hostLoop);R.sendT=null;R.hostLoop=null; }
+function myInfo(){
+  let name='',avatar=null;
+  try{name=Usion.user.getName()||'';}catch(e){}
+  try{avatar=Usion.user.getAvatar()||null;}catch(e){}
+  return {name,avatar,ready:myReady,lvl,tl};
+}
+function shareInfo(){ const i=myInfo();Roster.set(Roster.myId,i);rt('player_info',i);paintHall(); }
+async function enterRoom(roomId){
+  if(!roomId)return;
+  joinedRoom=roomId;
+  try{ await Usion.game.connect(); }catch(e){}
+  try{ await Usion.game.join(roomId); }catch(e){}
+  shareInfo();
+}
+function wireNet(){
+  try{
+    Usion.game.onJoined(d=>{ if(d&&d.player_ids)Roster.setIds(d.player_ids); Roster.see(Roster.myId); shareInfo(); });
+    Usion.game.onPlayerJoined(d=>{
+      if(!d)return;
+      if(d.player_ids)Roster.setIds(d.player_ids);
+      if(d.player_id){ Roster.see(d.player_id); const n=Roster.of(d.player_id).name; if(n)toast(I18N.t('joinedMsg',{n})); }
+      shareInfo();
+    });
+    Usion.game.onPlayerLeft(d=>{
+      if(!d||!d.player_id)return;
+      const id=d.player_id,n=Roster.of(id).name;
+      Roster.gone(id);
+      if(R.prog[id])R.prog[id].gone=true;
+      if(n)toast(I18N.t('leftMsg',{n}));
+      setTimeout(()=>{ if(Roster.present[id]===false&&phase==='hall'){Roster.drop(id);paintHall();} },20000);  // forfeit grace
+      paintHall();paintTrack();
+      if(phase==='race'&&isHost())checkRaceEnd();
+    });
+    Usion.game.onRoomAssigned(d=>{ openHall(d&&d.roomId); });
+    Usion.game.onAction(m=>{ if(m&&m.action_type==='race_start')applyRaceStart(m.action_data); });
+    Usion.game.onRealtime(onRealtime);
+    Usion.game.onSync(d=>{
+      if(!d||!d.actions)return;
+      for(let i=d.actions.length-1;i>=0;i--){ const a=d.actions[i]; if(a&&a.action_type==='race_start'){applyRaceStart(a.action_data);break;} }
+    });
+    Usion.game.onConnectionState(s=>{
+      const down=(s==='disconnected'||s==='rejoining');
+      $('#netOv').hidden=!down;
+      if(running)inp.disabled=down;
+      if(!down){ shareInfo(); try{Usion.game.requestSync();}catch(e){} }
+    });
+    Usion.game.onReconnected(()=>{ $('#netOv').hidden=true; if(running)inp.disabled=false; shareInfo(); });
+  }catch(e){}
+}
+function onRealtime(m){
+  if(!m)return;
+  const id=m.player_id,d=m.action_data||{};
+  if(m.action_type==='player_info'){
+    if(id===Roster.myId)return;
+    Roster.see(id);
+    Roster.set(id,{name:String(d.name||'').slice(0,24),avatar:d.avatar||null,ready:!!d.ready});
+    if(id===Roster.hostId()){ if(LIMITS[d.lvl])lvl=+d.lvl; if(d.tl==='en'||d.tl==='mn')tl=d.tl; markChips(); }
+    paintHall();
+    if(isHost())rt('player_info',myInfo());          // late joiner missed everyone's earlier info
+    return;
+  }
+  if(m.action_type==='quick_chat'){ Chat.receive(m); return; }
+  if(m.action_type==='rush'){ if(!isHost()&&phase==='race')toast(I18N.t('rush',{n:GRACE})); return; }
+  if(m.action_type==='prog'){
+    if(!isHost()||id===Roster.myId)return;
+    const p=R.prog[id]||(R.prog[id]={});
+    p.f=Math.max(p.f||0,Math.min(1,+d.f||0));
+    p.w=Math.min(MAXW,Math.max(0,Math.round(+d.w||0)));
+    p.s=Math.max(0,Math.round(+d.s||0));
+    if(d.d&&!p.d){ p.d=1;p.ms=performance.now()-startT; }
+    return;
+  }
+  if(m.action_type==='state'){
+    if(isHost())return;
+    R.hostT=+d.t;R.hostTAt=Date.now();
+    (d.p||[]).forEach((row,k)=>{
+      const sid=R.seats[k];
+      if(!sid||sid===Roster.myId||!row)return;
+      R.prog[sid]={f:row[0]/1000,w:row[1],s:row[2],d:row[3],gone:!!row[4]};
+    });
+    paintTrack();
+    return;
+  }
+  if(m.action_type==='gameover'&&!isHost()){ showRaceEnd(d.st||[],d.win); }
+}
+
+/* ---------- waiting hall (the room the chat invite leads to) ---------- */
+function openHall(roomId){
+  stopNetLoops();clearInterval(timer);running=false;
+  R.seats=[];R.prog={};R.bots={};R.pending=0;
+  phase='hall';myReady=false;
+  hideOverlays();$('#track').hidden=true;$('#hallOv').hidden=false;
+  let rid=roomId;
+  if(!rid){ try{ rid=Usion.getLaunchParams().roomId; }catch(e){} }
+  if(rid&&rid!==joinedRoom)enterRoom(rid); else shareInfo();
+  paintHall();
+}
+function paintHall(){
+  const el=$('#roster');if(!el)return;
+  const host=Roster.hostId(),iAmHost=isHost();
+  el.innerHTML='';
+  Roster.ids.forEach(id=>{
+    if(Roster.of(id).bot)return;
+    const info=Roster.of(id),row=document.createElement('div');
+    row.className='pl'+(id===Roster.myId?' me':'')+(Roster.present[id]===false?' gone':'');
+    row.appendChild(avatarEl(info));
+    const nm=document.createElement('span');nm.className='plname';nm.textContent=info.name||I18N.t('lbPlayer');
+    row.appendChild(nm);
+    if(id===host){const t=document.createElement('span');t.className='pltag';t.textContent=I18N.t('tagHost');row.appendChild(t);}
+    if(id===Roster.myId){const t=document.createElement('span');t.className='pltag';t.textContent=I18N.t('tagYou');row.appendChild(t);}
+    const r=document.createElement('span');r.className='plrdy'+(info.ready?' on':'');
+    r.textContent=Roster.present[id]===false?I18N.t('tagLeft'):(info.ready?'✓':'…');
+    row.appendChild(r);
+    el.appendChild(row);
+  });
+  $('#readyBtn').textContent=myReady?I18N.t('ready'):I18N.t('notReady');
+  $('#readyBtn').classList.toggle('sec',myReady);
+  $('#startBtn').hidden=!iAmHost;
+  $('#botsBtn').hidden=!iAmHost;
+  $('#startBtn').disabled=!Roster.allReady();
+  $('#hallLvl').hidden=!iAmHost;$('#hallLvlLabel').hidden=!iAmHost;
+  $('#hallHint').textContent=iAmHost?(Roster.allReady()?I18N.t('hallWait'):I18N.t('hallNeed')):I18N.t('hallGuest');
+  updateChatBtn();
+}
+function updateChatBtn(){ $('#chatBtn').hidden=humansHere().length<2; }
+
+/* ---------- race start / loops ---------- */
+function hostStart(withBots){
+  const seats=humansHere().slice(),bots=[];
+  if(withBots){
+    shuffle(BOTS.slice()).slice(0,Math.max(1,3-seats.length)).forEach((b,i)=>{
+      const id='bot'+(i+1);bots.push({id,name:b[0],wpm:b[1]});seats.push(id);
+    });
+  }
+  if(seats.length<2)return toast(I18N.t('needTwo'));
+  const d={seed:(Date.now()^Math.floor(Math.random()*1e9))>>>0,seats,bots,lvl,tl,limit:LIMITS[lvl]};
+  act('race_start',d);          // sequenced + stored: rejoins rebuild the race from it
+  applyRaceStart(d);
+}
+function applyRaceStart(d){
+  if(!d||!d.seats||!d.seats.length)return;
+  if(d.seed&&(R.pending===d.seed||(R.seed===d.seed&&phase==='race')))return;   // idempotent: own echo / resync
+  R.pending=d.seed;
+  stopNetLoops();clearInterval(timer);
+  R.seats=d.seats.slice();R.prog={};R.bots={};
+  (d.bots||[]).forEach(b=>{
+    Roster.set(b.id,{name:b.name,bot:true});Roster.present[b.id]=true;
+    R.bots[b.id]={wpm:b.wpm,chars:0,i:0,score:0,done:false,ms:0};
+  });
+  R.seats.forEach(id=>{ R.prog[id]={f:0,w:0,s:0,d:0,gone:false}; });
+  if(LIMITS[d.lvl])lvl=+d.lvl;
+  if(d.tl==='en'||d.tl==='mn')tl=d.tl;
+  markChips();hideOverlays();
+  countdown(()=>{
+    startRound({queue:seededQueue(d.seed,tl,lvl,SENTS),limit:d.limit||LIMITS[lvl],lvl,tl,seed:d.seed,mp:true});
+    R.sendT=setInterval(sendMine,100);
+    if(isHost())R.hostLoop=setInterval(hostTick,66);     // 15 Hz host broadcast, never per frame
+    paintTrack();updateChatBtn();
+  });
+}
+function countdown(done){
+  const el=$('#cdown');let n=3;
+  el.hidden=false;el.textContent=n;Sfx.tick();
+  const t=setInterval(()=>{
+    n--;
+    if(n<=0){ el.textContent=I18N.t('go');Sfx.ok();clearInterval(t);setTimeout(()=>{el.hidden=true;done();},450); }
+    else{ el.textContent=n;Sfx.tick(); }
+  },700);
+}
+function sendMine(){
+  const s=stats(),p=R.prog[Roster.myId]||(R.prog[Roster.myId]={});
+  p.f=Math.max(p.f||0,myFrac());p.w=s.wpm;p.s=score;p.d=idx>=SENTS?1:0;
+  if(!isHost())rt('prog',{f:+p.f.toFixed(3),w:s.wpm,s:score,d:p.d});
+  paintTrack();
+}
+function hostTick(){
+  const now=performance.now(),dt=Math.min(0.25,(now-(hostTick._t||now))/1000);
+  hostTick._t=now;
+  for(const id in R.bots)stepBot(id,dt);
+  const rows=R.seats.map(id=>{ const p=R.prog[id]||{}; return[Math.round((p.f||0)*1000),Math.round(p.w||0),Math.round(p.s||0),p.d?1:0,p.gone?1:0]; });
+  rt('state',{t:+Math.max(0,timeLeft).toFixed(1),p:rows});
+  paintTrack();checkRaceEnd();
+}
+function stepBot(id,dt){
+  const b=R.bots[id],p=R.prog[id];
+  if(!b||!p||b.done)return;
+  b.chars+=b.wpm*5/60*dt*(0.88+Math.random()*0.24);
+  const total=R.cum[R.cum.length-1]||1;
+  while(b.i<SENTS&&b.chars>=R.cum[b.i+1]){ b.score+=Math.round(queue[b.i][0].length*(1+Math.max(0,timeLeft)/R.limit)); b.i++; }
+  if(b.i>=SENTS&&!b.done){ b.done=true;b.ms=performance.now()-startT; }
+  p.f=Math.min(1,b.chars/total);p.w=b.wpm;p.s=b.score;p.d=b.done?1:0;
+}
+function finishMine(){
+  running=false;inp.disabled=true;
+  const s=stats(),p=R.prog[Roster.myId]||(R.prog[Roster.myId]={});
+  p.f=1;p.w=s.wpm;p.s=score;p.d=1;p.ms=performance.now()-startT;
+  $('#prog').textContent=I18N.t('waitOthers');
+  rt('prog',{f:1,w:s.wpm,s:score,d:1});
+  paintTrack();
+  if(isHost())checkRaceEnd();
+}
+function checkRaceEnd(){
+  if(R.ended||phase!=='race')return;
+  const live=R.seats.filter(id=>!(R.prog[id]||{}).gone);
+  // the first player over the line starts the finishing countdown for everyone else
+  if(live.some(id=>(R.prog[id]||{}).d)&&timeLeft>GRACE){ timeLeft=GRACE;rt('rush',{});toast(I18N.t('rush',{n:GRACE})); }
+  if(!live.length||live.every(id=>(R.prog[id]||{}).d)||timeLeft<=0)endRace(true);
+}
+function buildStandings(){
+  return R.seats.map(id=>{
+    const p=R.prog[id]||{};
+    return {id,n:Roster.of(id).name||I18N.t('lbPlayer'),b:!!Roster.of(id).bot,
+            s:Math.round(p.s||0),w:Math.round(p.w||0),d:p.d?1:0,ms:p.ms||9e9};
+  }).sort((a,b)=>b.s-a.s||a.ms-b.ms);
+}
+function endRace(done){
+  if(R.ended)return;
+  if(!mpLive()){ end(!!done); return; }           // solo round
+  if(!isHost())return;                            // the host decides the winner, never a peer
+  R.ended=true;
+  const st=buildStandings(),win=st.length?st[0].id:null;
+  rt('gameover',{st,win});
+  const humans=st.filter(x=>!x.b);
+  if(humans.length>=2){
+    const scores={};humans.forEach(x=>{scores[x.id]=x.s;});
+    const ids=humans.map(x=>x.id);
+    try{ Usion.game.reportResult({winnerId:ids.indexOf(win)>=0?win:ids[0],standings:ids,scores,metric:'score'}); }catch(e){}
+  }
+  showRaceEnd(st,win);
+}
+
+/* ---------- records + end screens ---------- */
+function recRows(hl){
+  hl=hl||{};
+  return [['recBest',Records.get('best'),'best'],['recWpm',Records.get('wpm'),'wpm'],
+          ['recAcc',Records.get('acc')+'%','acc'],['recSents',Records.get('sents'),'sents'],
+          ['recRaces',Records.get('races'),'races'],['recWins',Records.get('wins'),'wins']]
+    .map(r=>'<div class="rec'+(hl[r[2]]?' new':'')+'"><div class="l">'+I18N.t(r[0])+'</div><div class="v">'+r[1]+'</div></div>').join('');
+}
+function saveRecords(s,wpm,acc,won,mp){
+  const hl={};
+  if(s>0&&Records.best('best',s).better)hl.best=1;
+  if(wpm>0&&Records.best('wpm',wpm).better)hl.wpm=1;
+  if(typedChars>=20&&Records.best('acc',acc).better)hl.acc=1;
+  if(finished)Records.bump('sents',finished);
+  if(mp){ Records.bump('races'); if(won)hl.wins=1,Records.bump('wins'); }
+  best=Records.get('best');
+  return hl;
 }
 async function end(done){
-  clearInterval(timer);running=false;inp.blur();
-  const {wpm,acc}=stats();
-  const isBest=score>best;if(isBest){best=score;Store.set('best',best);}
+  clearInterval(timer);stopNetLoops();running=false;inp.disabled=true;inp.blur();phase='end';
+  const s=stats(),hl=saveRecords(score,s.wpm,s.acc,false,false);
   $('#endTitle').textContent=done?I18N.t('done'):I18N.t('timeUp');
   $('#finalScore').textContent=score;
-  $('#endMsg').textContent=(isBest&&score>0?I18N.t('newBest')+' ':'')+I18N.t('result',{w:wpm,a:acc,n:finished,t:SENTS});
+  $('#endMsg').textContent=(hl.best&&score>0?I18N.t('newBest')+' ':'')+I18N.t('result',{w:s.wpm,a:s.acc,n:finished,t:SENTS});
+  $('#standings').hidden=true;
+  $('#endRecs').innerHTML=recRows(hl);
+  $('#againBtn').textContent=I18N.t('again');
   $('#endOv').hidden=false;Sfx.win();
-  await Board.submit(score,{wpm,accuracy:acc,lvl,textLang:tl,sentences:finished});
+  await Board.submit(score,{wpm:s.wpm,accuracy:s.acc,lvl,textLang:tl,sentences:finished,mode:'solo'});
   Board.render($('#lb'));
 }
-$('#lvlChips').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;$$('#lvlChips .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');lvl=+c.dataset.lvl;Store.set('lvl',lvl);};
-$('#tlChips').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;$$('#tlChips .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');tl=c.dataset.tl;Store.set('tl',tl);};
-function openMenu(){clearInterval(timer);running=false;$('#endOv').hidden=true;$('#menuOv').hidden=false;}
-$('#menuStart').onclick=start;$('#againBtn').onclick=start;$('#setBtn').onclick=openMenu;$('#menuBtn2').onclick=openMenu;
-let best=0;
-bootApp(async ()=>{
-  best=(await Store.get('best'))||0;
-  const l=await Store.get('lvl');if(l&&LIMITS[l]){lvl=+l;$$('#lvlChips .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));}
-  const t=await Store.get('tl');tl=(t==='en'||t==='mn')?t:I18N.lang;$$('#tlChips .chip').forEach(c=>c.classList.toggle('on',c.dataset.tl===tl));
-  start();
+async function showRaceEnd(st,win){
+  if(phase==='end')return;
+  clearInterval(timer);stopNetLoops();running=false;inp.disabled=true;inp.blur();
+  phase='end';R.ended=true;
+  st=st&&st.length?st:buildStandings();
+  const s=stats(),won=!!win&&win===Roster.myId;
+  let place=1;st.forEach((x,i)=>{ if(x.id===Roster.myId)place=i+1; });
+  const hl=saveRecords(score,s.wpm,s.acc,won,true);
+  $('#endTitle').textContent=won?I18N.t('won'):I18N.t('placeN',{p:place});
+  $('#finalScore').textContent=score;
+  $('#endMsg').textContent=(hl.best&&score>0?I18N.t('newBest')+' ':'')+I18N.t('mpResult',{w:s.wpm,a:s.acc,n:score});
+  const sl=$('#standings');sl.innerHTML='';sl.hidden=false;
+  st.forEach((x,i)=>{
+    const row=document.createElement('div');row.className='pl'+(x.id===Roster.myId?' me':'');
+    const rk=document.createElement('span');rk.className='lbrank';rk.textContent=i+1;row.appendChild(rk);
+    row.appendChild(avatarEl(Roster.of(x.id)));
+    const nm=document.createElement('span');nm.className='plname';nm.textContent=x.n;row.appendChild(nm);
+    if(x.b){ const t=document.createElement('span');t.className='pltag';t.textContent=I18N.t('tagBot');row.appendChild(t); }
+    const sc=document.createElement('span');sc.className='lbscore';sc.textContent=x.s+' · '+x.w;row.appendChild(sc);
+    sl.appendChild(row);
+  });
+  $('#endRecs').innerHTML=recRows(hl);
+  $('#againBtn').textContent=I18N.t('backHall');
+  $('#endOv').hidden=false;
+  won?Sfx.win():Sfx.ok();
+  await Board.submit(score,{wpm:s.wpm,accuracy:s.acc,lvl,textLang:tl,sentences:finished,mode:'race',place});
+  Board.render($('#lb'));
+}
+
+/* ---------- race track + chat bubbles ---------- */
+function paintTrack(){
+  if(paintQ||!mpLive())return;
+  paintQ=true;
+  requestAnimationFrame(()=>{
+    paintQ=false;
+    const el=$('#track');
+    if(!el||el.hidden)return;
+    if(el.childElementCount!==R.seats.length){
+      el.innerHTML='';
+      R.seats.forEach(id=>{
+        const row=document.createElement('div');
+        row.className='trk'+(id===Roster.myId?' me':'');row.dataset.id=id;
+        row.appendChild(avatarEl(Roster.of(id)));
+        const nm=document.createElement('span');nm.className='tname';nm.textContent=Roster.of(id).name||I18N.t('lbPlayer');
+        const bw=document.createElement('i');bw.className='tbarw';bw.appendChild(document.createElement('b'));
+        const w=document.createElement('span');w.className='twpm';
+        row.append(nm,bw,w);el.appendChild(row);
+      });
+    }
+    R.seats.forEach((id,k)=>{
+      const row=el.children[k];if(!row)return;
+      const mine=id===Roster.myId;
+      const p=mine?{f:myFrac(),w:+$('#wpm').textContent||0,d:idx>=SENTS?1:0}:(R.prog[id]||{});
+      row.querySelector('b').style.width=Math.round((p.f||0)*100)+'%';
+      row.querySelector('.twpm').textContent=p.gone?'—':Math.round(p.w||0);
+      row.classList.toggle('done',!!p.d);
+      row.classList.toggle('gone',!!p.gone);
+    });
+  });
+}
+Chat.render=function(id,phrase){
+  const el=$('#track');
+  if(!el||el.hidden)return;
+  const row=Array.prototype.find.call(el.children,c=>c.dataset.id===id);
+  if(!row)return;
+  const old=row.querySelector('.bub');if(old)old.remove();
+  const b=document.createElement('div');b.className='bub';b.textContent=phrase;   // textContent: peers can send anything
+  row.appendChild(b);
+  setTimeout(()=>b.remove(),2200);
+};
+function openChat(){
+  const el=$('#phrases');el.innerHTML='';
+  (PHRASES[I18N.lang]||PHRASES.mn).forEach(p=>{
+    const b=document.createElement('button');b.textContent=p;
+    b.onclick=()=>{ Chat.send(p);$('#chatSheet').hidden=true; };
+    el.appendChild(b);
+  });
+  $('#chatInp').value='';$('#chatSheet').hidden=false;
+}
+
+/* ---------- invites (the platform's own friend picker — never our own UI) ---------- */
+async function inviteFriends(){
+  let r=null;
+  try{ r=await Usion.game.invite(); }catch(e){ r=null; }
+  if(r&&r.success){
+    toast(I18N.t('invited'));
+    if(phase!=='hall')openHall(r.roomId);
+    else if(r.roomId&&r.roomId!==joinedRoom)enterRoom(r.roomId);
+  }else toast(I18N.t('inviteFail'));
+}
+
+/* ---------- UI wiring ---------- */
+function hideOverlays(){ ['menuOv','endOv','hallOv','recOv','netOv'].forEach(i=>{$('#'+i).hidden=true;}); $('#chatSheet').hidden=true; }
+function markChips(){
+  $$('#lvlChips .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
+  $$('#hallLvl .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
+  $$('#tlChips .chip').forEach(c=>c.classList.toggle('on',c.dataset.tl===tl));
+}
+function pickLvl(v){ lvl=+v;Store.set('lvl',lvl);markChips();if(phase==='hall')shareInfo(); }
+function openMenu(){ clearInterval(timer);stopNetLoops();running=false;phase='end';hideOverlays();$('#menuOv').hidden=false; }
+function openRecords(){ $('#recGrid').innerHTML=recRows(null);$('#recOv').hidden=false;Board.render($('#recLb')); }
+$('#lvlChips').onclick=e=>{ const c=e.target.closest('.chip');if(c)pickLvl(c.dataset.lvl); };
+$('#hallLvl').onclick=e=>{ const c=e.target.closest('.chip');if(c&&isHost())pickLvl(c.dataset.lvl); };
+$('#tlChips').onclick=e=>{ const c=e.target.closest('.chip');if(!c)return;tl=c.dataset.tl;Store.set('tl',tl);markChips();if(phase==='hall')shareInfo(); };
+$('#menuStart').onclick=startSolo;
+$('#setBtn').onclick=openMenu;
+$('#menuBtn2').onclick=openMenu;
+$('#recBtn').onclick=openRecords;
+$('#recClose').onclick=()=>{ $('#recOv').hidden=true; };
+$('#againBtn').onclick=()=>{ if(joinedRoom)openHall(joinedRoom);else startSolo(); };
+$('#menuInvite').onclick=inviteFriends;
+$('#endInvite').onclick=inviteFriends;
+$('#recInvite').onclick=inviteFriends;
+$('#inviteBtn').onclick=inviteFriends;
+$('#readyBtn').onclick=()=>{ myReady=!myReady;Sfx.tick();shareInfo(); };
+$('#startBtn').onclick=()=>{ if(isHost()&&Roster.allReady())hostStart(false); };
+$('#botsBtn').onclick=()=>{ if(isHost())hostStart(true); };
+$('#chatBtn').onclick=openChat;
+$('#chatSheet').onclick=e=>{ if(e.target.id==='chatSheet')$('#chatSheet').hidden=true; };
+$('#chatSend').onclick=()=>{ if(Chat.send($('#chatInp').value)){ $('#chatInp').value='';$('#chatSheet').hidden=true; } };
+$('#chatInp').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#chatSend').click(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')$('#chatSheet').hidden=true; });
+window.addEventListener('langchange',()=>{
+  markChips();
+  if(phase==='hall')paintHall();
+  if(!$('#recOv').hidden)$('#recGrid').innerHTML=recRows(null);
+});
+
+/* ---------- boot ---------- */
+bootApp(async (cfg)=>{
+  cfg=cfg||{};
+  try{ Roster.myId=Usion.user.getId()||'local_dev'; }catch(e){ Roster.myId='local_dev'; }
+  await Records.load();
+  best=Records.get('best');
+  const l=await Store.get('lvl');if(l&&LIMITS[l])lvl=+l;
+  const t=await Store.get('tl');tl=(t==='en'||t==='mn')?t:I18N.lang;
+  markChips();
+  Roster.reset(cfg.playerIds&&cfg.playerIds.length?cfg.playerIds:[Roster.myId],Roster.myId);
+  Roster.set(Roster.myId,myInfo());
+  wireNet();                                                    // up front: a solo round can be promoted
+  if(!launchedSolo(cfg)&&cfg.roomId)openHall(cfg.roomId);       // chat invite → waiting hall
+  else startSolo();                                             // GameTok / Explore → instant play
 });
 </script>
 </body>

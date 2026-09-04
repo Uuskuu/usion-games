@@ -17,6 +17,17 @@
     user:{ getId(){return 'local_dev';}, getName(){return 'You';}, getAvatar(){return null;} },
     storage:{ get(k){return P(mem[k]===undefined?null:mem[k]);}, set(k,v){mem[k]=v;return P({success:true});}, remove(k){delete mem[k];return P({success:true});}, keys(){return P(Object.keys(mem));}, clear(){for(const k in mem)delete mem[k];return P({success:true});} },
     leaderboard:{ submit(s){return P({success:true,score:s,best:s,previous:null,rank:1,updated:true});}, top(){return P([]);}, friends(){return P([{user_id:'local_dev',name:'You',score:0,rank:1,is_me:true}]);}, me(){return P({score:0,rank:1,total:1});} },
+    game:{
+      connect(){return P(true);}, join(){return P({room_id:null,player_id:'local_dev'});}, leave:noop, disconnect:noop,
+      isConnected(){return false;}, isMultiplayer(){return false;},
+      action(){return P({success:true});}, realtime(){return P({success:true});}, requestSync:noop,
+      invite(){return P({success:false,reason:'offline'});}, reportResult(){return P({success:true});},
+      forfeit(){return P({success:true});}, setState(){return P({success:true});},
+      saveState(){return false;}, loadState(){return null;}, clearState:noop,
+      onJoined:noop, onPlayerJoined:noop, onPlayerLeft:noop, onRoomAssigned:noop, onAction:noop, onRealtime:noop,
+      onSync:noop, onError:noop, onDisconnect:noop, onReconnect:noop, onReconnected:noop,
+      onConnectionState:noop, onPlayerConnection:noop, onGameFinished:noop, onStateUpdate:noop
+    },
     share:noop, claimBackButton:noop, releaseBackButton:noop, exit:noop, log:noop, setLoading:noop
   };
 })();
@@ -134,5 +145,92 @@ function bindTopbar() {
   const lb = $('#langBtn'); if (lb) lb.onclick = () => I18N.toggle();
   const sb = $('#sfxBtn'); if (sb) { sb.textContent = Sfx.on ? '🔊' : '🔈'; sb.onclick = () => { sb.textContent = Sfx.toggle() ? '🔊' : '🔈'; }; }
 }
+/* ---- records: durable personal bests / counters (Usion.storage backed) ---- */
+const Records = {
+  d: {}, _t: null,
+  async load() { this.d = (await Store.get('records')) || {}; return this.d; },
+  get(k, dflt) { const v = this.d[k]; return (v === undefined || v === null) ? (dflt === undefined ? 0 : dflt) : v; },
+  bump(k, n) { this.d[k] = (this.d[k] || 0) + (n === undefined ? 1 : n); this.save(); return this.d[k]; },
+  /* returns {better, prev} — prev is null on a first-ever result */
+  best(k, v, lowerIsBetter) {
+    const p = this.d[k]; const has = p !== undefined && p !== null;
+    const better = !has || (lowerIsBetter ? v < p : v > p);
+    if (better) { this.d[k] = v; this.save(); }
+    return { better, prev: has ? p : null };
+  },
+  save() { clearTimeout(this._t); this._t = setTimeout(() => Store.set('records', this.d), 120); }
+};
+
+/* The platform's launch-mode split: 'single' => instant play, 'multiplayer' => waiting hall.
+   Decided from the MODE, never from roomId (a solo launch can carry a standalone_* room). */
+function launchedSolo(config) {
+  try {
+    const lp = (window.Usion && Usion.getLaunchParams && Usion.getLaunchParams()) || {};
+    if (lp.mode === 'single') return true;
+    if (lp.mode === 'multiplayer') return false;
+    if (Usion.game && typeof Usion.game.isMultiplayer === 'function') return !Usion.game.isMultiplayer();
+    const rid = config && config.roomId ? String(config.roomId) : '';
+    return !rid || /^standalone[_-]/i.test(rid);
+  } catch (e) { return false; }
+}
+
+/* ---- roster: who is in the room, their info and ready state ---- */
+const Roster = {
+  ids: [], myId: null, info: {}, present: {},
+  reset(ids, myId) {
+    this.myId = myId || this.myId;
+    this.ids = (ids || []).slice();
+    if (this.myId && this.ids.indexOf(this.myId) < 0) this.ids.push(this.myId);
+    this.info = {}; this.present = {};
+    if (this.myId) this.see(this.myId);
+    return this;
+  },
+  /* adopt the platform roster verbatim — ids[0] is the host — keeping known info */
+  setIds(ids) {
+    if (!ids || !ids.length) return this;
+    this.ids = ids.slice();
+    if (this.myId && this.ids.indexOf(this.myId) < 0) this.ids.push(this.myId);
+    this.ids.forEach(id => { if (this.present[id] === undefined) this.present[id] = true; });
+    return this;
+  },
+  hostId() { return this.ids[0] || null; },
+  isHost() { return !!this.myId && this.hostId() === this.myId; },
+  see(id) { if (!id) return; if (this.ids.indexOf(id) < 0) this.ids.push(id); this.present[id] = true; if (this.info[id]) this.info[id].gone = false; },
+  gone(id) { this.present[id] = false; if (this.info[id]) this.info[id].gone = true; },
+  drop(id) { delete this.present[id]; const i = this.ids.indexOf(id); if (i >= 0) this.ids.splice(i, 1); delete this.info[id]; },
+  set(id, patch) { this.info[id] = Object.assign({ name: '', avatar: null, ready: false, bot: false, gone: false }, this.info[id], patch); return this.info[id]; },
+  of(id) { return this.info[id] || { name: '', avatar: null, ready: false, bot: false, gone: false }; },
+  name(id) { const n = this.of(id).name; return n || (id === this.myId ? I18N.t('lbPlayer') : I18N.t('lbPlayer')); },
+  here() { return this.ids.filter(id => this.present[id] !== false); },
+  allReady() { const h = this.here(); return h.length >= 2 && h.every(id => this.of(id).ready); }
+};
+
+/* avatar bubble (image or initial) shared by the roster, the race track and the boards */
+function avatarEl(info, cls) {
+  const av = document.createElement('span'); av.className = cls || 'lbav';
+  if (info && info.avatar) { const img = document.createElement('img'); img.src = info.avatar; img.alt = ''; img.draggable = false; av.appendChild(img); }
+  else av.textContent = ((info && info.name) || '?').slice(0, 1).toUpperCase();
+  return av;
+}
+
+/* ---- in-game quick chat (rides the room relay, never Usion.chat) ---- */
+const Chat = {
+  MAX: 60, _last: 0, render: null,
+  norm(v) { if (typeof v !== 'string') return ''; const m = v.trim().replace(/\s+/g, ' '); return (m && m.length <= this.MAX) ? m : m.slice(0, this.MAX); },
+  send(v) {
+    const phrase = this.norm(v); if (!phrase) return false;
+    if (Date.now() - this._last < 700) return false;
+    this._last = Date.now();
+    if (this.render) this.render(Roster.myId, phrase);
+    try { Usion.game.realtime('quick_chat', { phrase }); } catch (e) {}
+    return true;
+  },
+  receive(m) {
+    if (!m || m.action_type !== 'quick_chat' || m.player_id === Roster.myId) return;
+    const phrase = this.norm(m.action_data && m.action_data.phrase);
+    if (phrase && this.render) this.render(m.player_id, phrase);
+  }
+};
+
 /* block scroll on play surfaces */
 document.addEventListener('touchmove', e => { if (e.target.closest && e.target.closest('.play')) e.preventDefault(); }, { passive: false });

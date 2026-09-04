@@ -16,6 +16,7 @@ body{display:flex;flex-direction:column;height:100dvh;background:var(--bg);color
 .btn{display:inline-block;background:var(--accent);color:var(--accentfg);border:0;border-radius:12px;padding:13px 22px;font-size:16px;font-weight:700;cursor:pointer;min-width:150px}
 .btn:active{transform:translateY(1px) scale(.98)}
 .btn.sec{background:var(--card);color:var(--fg);border:1px solid var(--line)}
+.btn:disabled{opacity:.4;cursor:default;transform:none}
 .btn.sm{padding:9px 14px;font-size:14px;min-width:0;border-radius:10px}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;backdrop-filter:blur(3px);overflow:auto}
 .overlay[hidden]{display:none}
@@ -48,3 +49,42 @@ body{display:flex;flex-direction:column;height:100dvh;background:var(--bg);color
 .lbname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lbscore{font-weight:800;font-variant-numeric:tabular-nums}
 .play{touch-action:none}
+/* ---- waiting hall / roster ---- */
+.roster{display:flex;flex-direction:column;gap:6px;margin:10px 0;text-align:left;max-height:210px;overflow:auto}
+.pl{display:flex;align-items:center;gap:9px;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.pl.me{border-color:var(--fg)}
+.pl.gone{opacity:.45}
+.pl .lbav{width:30px;height:30px;font-size:13px}
+.plname{flex:1;font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pltag{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;background:var(--card2);border-radius:6px;padding:2px 6px}
+.plrdy{font-size:12px;font-weight:800;color:var(--muted)}
+.plrdy.on{color:var(--ok)}
+/* ---- race track ---- */
+.track{display:flex;flex-direction:column;gap:5px;width:100%;margin-bottom:10px;flex:none}
+.trk{position:relative;display:flex;align-items:center;gap:8px;font-size:12px}
+.trk .lbav{width:22px;height:22px;font-size:10px}
+.tname{width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.trk.me .tname{color:var(--blue)}
+.tbarw{flex:1;height:9px;background:var(--card);border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.tbarw b{display:block;height:100%;background:var(--fg);border-radius:999px;transition:width .12s linear}
+.trk.me .tbarw b{background:var(--blue)}
+.trk.done .tbarw b{background:var(--ok)}
+.twpm{width:46px;text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:var(--muted)}
+.bub{position:absolute;left:30px;bottom:16px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:5px 10px;font-size:12px;font-weight:600;max-width:75%;z-index:5;animation:pop .15s;white-space:pre-wrap;word-break:break-word}
+/* ---- quick chat sheet ---- */
+.sheet{position:fixed;inset:0;z-index:70;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.5)}
+.sheet[hidden]{display:none}
+.sheetbox{background:var(--bg);border:1px solid var(--line);border-radius:20px 20px 0 0;padding:14px;width:100%;max-width:520px}
+.phr{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.phr button{background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;text-align:left}
+.chatrow{display:flex;gap:6px}
+.chatrow input{flex:1;background:var(--card2);border:1px solid var(--line);color:var(--fg);border-radius:12px;padding:11px;font-size:15px;outline:none}
+/* ---- records ---- */
+.recs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0;text-align:left}
+.rec{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+.rec .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.rec .v{font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:1px}
+.rec.new{border-color:var(--ok)}
+.rec.new .v{color:var(--ok)}
+.cdown{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:88px;font-weight:900;background:rgba(0,0,0,.6);z-index:65;pointer-events:none}
+.cdown[hidden]{display:none}
