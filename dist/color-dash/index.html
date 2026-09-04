@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html data-game="color-dash">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Өнгө хурд · Color Dash</title>
+<script src="https://usions.com/usion-sdk.js"></script>
+<style>*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+input,textarea,[contenteditable],.selectable,.selectable *{-webkit-user-select:text;user-select:text}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
+:root{--bg:#0a0a0a;--fg:#fafafa;--card:#141414;--card2:#1f1f1f;--line:#2a2a2a;--muted:#8a8a8a;--accent:#fafafa;--accentfg:#0a0a0a;--ok:#22c55e;--bad:#ef4444;--warn:#f59e0b;--blue:#3b82f6;--r:14px}
+:root[data-theme="light"]{--bg:#ffffff;--fg:#0a0a0a;--card:#f5f5f5;--card2:#ebebeb;--line:#e2e2e2;--muted:#6b6b6b;--accent:#0a0a0a;--accentfg:#ffffff}
+body{display:flex;flex-direction:column;height:100dvh;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans",Arial,sans-serif}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);flex:none}
+.topbar h1{font-size:17px;margin:0;flex:1;font-weight:700;letter-spacing:-.2px}
+.tb{background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;cursor:pointer;line-height:1.2}
+.tb:active{transform:scale(.96)}
+.wrap{flex:1;display:flex;flex-direction:column;align-items:center;padding:12px 14px;width:100%;max-width:520px;margin:0 auto;overflow:hidden;min-height:0}
+.stats{display:flex;gap:8px;width:100%;margin-bottom:10px;flex:none}
+.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:7px 10px;text-align:center}
+.stat .l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.stat .v{font-size:19px;font-weight:800;margin-top:1px;font-variant-numeric:tabular-nums}
+.btn{display:inline-block;background:var(--accent);color:var(--accentfg);border:0;border-radius:12px;padding:13px 22px;font-size:16px;font-weight:700;cursor:pointer;min-width:150px}
+.btn:active{transform:translateY(1px) scale(.98)}
+.btn.sec{background:var(--card);color:var(--fg);border:1px solid var(--line)}
+.btn.sm{padding:9px 14px;font-size:14px;min-width:0;border-radius:10px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50;backdrop-filter:blur(3px);overflow:auto}
+.overlay[hidden]{display:none}
+.panel{background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:22px 18px;width:100%;max-width:380px;text-align:center;max-height:100%;overflow:auto}
+.panel h2{margin:0 0 6px;font-size:22px;letter-spacing:-.3px}
+.panel p{color:var(--muted);margin:0 0 14px;line-height:1.45;font-size:14px}
+.panel .big{font-size:42px;font-weight:900;margin:6px 0 2px;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:8px 0 12px}
+.chip{background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:7px 13px;font-size:13px;font-weight:700;cursor:pointer}
+.chip.on{background:var(--accent);color:var(--accentfg);border-color:var(--accent)}
+.muted{color:var(--muted);font-size:13px}
+.toast{position:fixed;left:50%;top:64px;transform:translateX(-50%);background:var(--card2);border:1px solid var(--line);padding:7px 14px;border-radius:999px;font-weight:800;font-size:15px;pointer-events:none;animation:pop .15s;z-index:60}
+@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pop{animation:pop .18s ease-out}.shake{animation:shake .25s}
+/* leaderboard */
+.lb{margin:12px 0 4px;text-align:left}
+.lbtabs{display:flex;gap:6px;margin-bottom:8px}
+.lbtab{flex:1;background:var(--card);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px;font-size:12px;font-weight:700;cursor:pointer}
+.lbtab.on{color:var(--fg);border-color:var(--fg)}
+.lblist{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.lblist .muted{padding:12px;text-align:center}
+.lbrow{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px}
+.lbrow:last-child{border-bottom:0}
+.lbrow.me{background:var(--card)}
+.lbrank{width:18px;color:var(--muted);font-weight:700;text-align:right}
+.lbav{width:26px;height:26px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;overflow:hidden;flex:none}
+.lbav img{width:100%;height:100%;object-fit:cover}
+.lbname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbscore{font-weight:800;font-variant-numeric:tabular-nums}
+.play{touch-action:none}
+
+.word{font-size:clamp(42px,13vw,68px);font-weight:900;text-align:center;margin:10px 0 4px;min-height:84px;display:flex;align-items:center;justify-content:center;letter-spacing:1px}
+.hint{color:var(--muted);font-size:14px;text-align:center;min-height:20px;font-weight:600}
+.timerbar{width:100%;height:8px;background:var(--card);border-radius:999px;overflow:hidden;margin:8px 0}
+.timerbar i{display:block;height:100%;background:var(--fg);transition:width .2s linear}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:6px;flex:1;min-height:0;align-content:start}
+.tile{height:clamp(80px,21vw,116px);border-radius:16px;border:0;cursor:pointer;box-shadow:inset 0 -5px 0 rgba(0,0,0,.22)}
+.tile:active{transform:scale(.96)}
+.ready{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:900;pointer-events:none}
+</style>
+</head>
+<body>
+<div class="topbar"><h1 data-i18n="title"></h1><button id="modeBtn" class="tb"></button><button id="sfxBtn" class="tb"></button><button id="langBtn" class="tb"></button></div>
+<div class="wrap play">
+  <div class="stats">
+    <div class="stat"><div class="l" data-i18n="score"></div><div class="v" id="score">0</div></div>
+    <div class="stat"><div class="l" data-i18n="combo"></div><div class="v" id="combo">×1</div></div>
+    <div class="stat"><div class="l" data-i18n="best"></div><div class="v" id="best">0</div></div>
+  </div>
+  <div class="timerbar"><i id="tbar" style="width:100%"></i></div>
+  <div class="hint" id="hint"></div>
+  <div class="word" id="word"></div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<div class="overlay" id="menuOv" hidden>
+  <div class="panel">
+    <h2 data-i18n="title"></h2>
+    <p data-i18n="rules"></p>
+    <div class="chips" id="modeChips">
+      <button class="chip on" data-mode="classic" data-i18n="modeClassic"></button>
+      <button class="chip" data-mode="reverse" data-i18n="modeReverse"></button>
+      <button class="chip" data-mode="chaos" data-i18n="modeChaos"></button>
+    </div>
+    <button class="btn" id="menuStart" data-i18n="start"></button>
+  </div>
+</div>
+<div class="overlay" id="endOv" hidden>
+  <div class="panel">
+    <h2 data-i18n="timeUp"></h2>
+    <div class="big" id="finalScore">0</div>
+    <p id="endMsg"></p>
+    <div class="lb" id="lb"></div>
+    <div class="row"><button class="btn" id="againBtn" data-i18n="again"></button><button class="btn sec" id="menuBtn2" data-i18n="modes"></button></div>
+  </div>
+</div>
+
+<script>/* ===== Usion mini-app shared runtime (uses the real window.Usion SDK) =====
+ * The SDK is loaded via <script src="https://usions.com/usion-sdk.js"> in <head>.
+ * Outside the host (local dev / SDK unreachable) a minimal stub with the SAME
+ * method names is installed so the game still runs; every SDK call is wrapped
+ * in try/catch because platform writes fail for guests (AUTH_REQUIRED).
+ */
+(function installStubIfNeeded(){
+  if (window.Usion) return;
+  const mem = {};
+  const noop = () => {};
+  const P = v => Promise.resolve(v);
+  window.Usion = {
+    _stub: true,
+    init(cb){ const cfg={userId:'local_dev',userName:'You',theme:'dark',language:(navigator.language||'mn').slice(0,2),mode:'single'}; this.config=cfg; setTimeout(()=>cb&&cb(cfg),0); return P(cfg); },
+    config:{}, getLaunchParams(){ return {mode:'single',path:null,roomId:null,ref:null}; },
+    getTheme(){ return (this.config&&this.config.theme)||'dark'; }, getLanguage(){ return (this.config&&this.config.language)||'mn'; },
+    user:{ getId(){return 'local_dev';}, getName(){return 'You';}, getAvatar(){return null;} },
+    storage:{ get(k){return P(mem[k]===undefined?null:mem[k]);}, set(k,v){mem[k]=v;return P({success:true});}, remove(k){delete mem[k];return P({success:true});}, keys(){return P(Object.keys(mem));}, clear(){for(const k in mem)delete mem[k];return P({success:true});} },
+    leaderboard:{ submit(s){return P({success:true,score:s,best:s,previous:null,rank:1,updated:true});}, top(){return P([]);}, friends(){return P([{user_id:'local_dev',name:'You',score:0,rank:1,is_me:true}]);}, me(){return P({score:0,rank:1,total:1});} },
+    share:noop, claimBackButton:noop, releaseBackButton:noop, exit:noop, log:noop, setLoading:noop
+  };
+})();
+
+/* ---- i18n ---- */
+const I18N = (() => {
+  let lang = 'mn'; const dict = {};
+  function t(key, vars) {
+    let s = (dict[lang] && dict[lang][key]) || (dict.mn && dict.mn[key]) || key;
+    if (vars) for (const k in vars) s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]);
+    return s;
+  }
+  function apply() {
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = t(el.dataset.i18nPh); });
+    document.documentElement.lang = lang;
+    const b = document.getElementById('langBtn'); if (b) b.textContent = lang === 'mn' ? 'EN' : 'MN';
+  }
+  function set(l) { lang = l === 'en' ? 'en' : 'mn'; apply(); window.dispatchEvent(new Event('langchange')); }
+  function toggle() { set(lang === 'mn' ? 'en' : 'mn'); Store.set('lang', lang); }
+  return { t, apply, set, toggle, get lang() { return lang; }, register(d) { for (const l in d) dict[l] = Object.assign(dict[l] || {}, d[l]); } };
+})();
+
+/* ---- durable per-user storage (Usion.storage, localStorage fallback) ---- */
+const Store = {
+  prefix: (document.documentElement.dataset.game || 'game') + ':',
+  async get(k) { try { const v = await Usion.storage.get(this.prefix + k); if (v !== null && v !== undefined) return v; } catch (e) {} try { const s = localStorage.getItem(this.prefix + k); return s ? JSON.parse(s) : null; } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(this.prefix + k, JSON.stringify(v)); } catch (e) {} try { return Usion.storage.set(this.prefix + k, v).catch(() => {}); } catch (e) { return Promise.resolve(); } },
+  remove(k) { try { localStorage.removeItem(this.prefix + k); } catch (e) {} try { return Usion.storage.remove(this.prefix + k).catch(() => {}); } catch (e) { return Promise.resolve(); } },
+};
+
+/* ---- leaderboard: submit + render friends/global boards ---- */
+const Board = {
+  async submit(score, meta) {
+    try { return await Usion.leaderboard.submit(score, meta); } catch (e) { return null; }
+  },
+  /* container gets a Friends/Global toggle + list. lowerIsBetter only affects formatting. */
+  async render(container, fmt) {
+    fmt = fmt || (v => v);
+    container.innerHTML = '<div class="lbtabs"><button class="lbtab on" data-k="friends">' + I18N.t('lbFriends') + '</button><button class="lbtab" data-k="top">' + I18N.t('lbGlobal') + '</button></div><div class="lblist"><div class="muted">…</div></div>';
+    const list = container.querySelector('.lblist');
+    const me = (() => { try { return Usion.user.getId(); } catch (e) { return null; } })();
+    async function load(k) {
+      list.innerHTML = '<div class="muted">…</div>';
+      let rows = [];
+      try { rows = k === 'friends' ? await Usion.leaderboard.friends({ limit: 10 }) : await Usion.leaderboard.top({ limit: 10 }); } catch (e) { rows = []; }
+      if (!rows || !rows.length) { list.innerHTML = '<div class="muted">' + I18N.t('lbEmpty') + '</div>'; return; }
+      list.innerHTML = '';
+      rows.slice(0, 10).forEach((r, i) => {
+        const d = document.createElement('div'); d.className = 'lbrow' + ((r.is_me || r.user_id === me) ? ' me' : '');
+        const rank = document.createElement('span'); rank.className = 'lbrank'; rank.textContent = (r.rank || i + 1);
+        const av = document.createElement('span'); av.className = 'lbav'; if (r.avatar) { const img = document.createElement('img'); img.src = r.avatar; img.alt = ''; img.draggable = false; av.appendChild(img); } else av.textContent = (r.name || '?').slice(0, 1).toUpperCase();
+        const nm = document.createElement('span'); nm.className = 'lbname'; nm.textContent = r.name || I18N.t('lbPlayer');
+        const sc = document.createElement('span'); sc.className = 'lbscore'; sc.textContent = fmt(r.score);
+        d.append(rank, av, nm, sc); list.appendChild(d);
+      });
+    }
+    container.querySelectorAll('.lbtab').forEach(b => b.onclick = () => { container.querySelectorAll('.lbtab').forEach(x => x.classList.remove('on')); b.classList.add('on'); load(b.dataset.k); });
+    load('friends');
+  }
+};
+I18N.register({ mn: { lbFriends: 'Найзууд', lbGlobal: 'Глобал', lbEmpty: 'Одоогоор амжилт алга', lbPlayer: 'Тоглогч' }, en: { lbFriends: 'Friends', lbGlobal: 'Global', lbEmpty: 'No records yet', lbPlayer: 'Player' } });
+
+/* ---- theme ---- */
+function applyTheme() { let th = 'dark'; try { th = Usion.getTheme() || 'dark'; } catch (e) {} document.documentElement.dataset.theme = th; }
+
+/* ---- boot: wait for Usion.init, then start instantly (mode 'single' = zero taps) ---- */
+function bootApp(onReady) {
+  let started = false;
+  async function go(cfg) {
+    if (started) return; started = true;
+    cfg = cfg || Usion.config || {};
+    applyTheme();
+    let saved = null; try { saved = await Store.get('lang'); } catch (e) {}
+    let lang = saved; if (!lang) { try { lang = Usion.getLanguage(); } catch (e) {} } if (!lang) lang = cfg.language || 'mn';
+    I18N.set(lang);
+    bindTopbar();
+    try { Usion.releaseBackButton(); } catch (e) {}
+    onReady(cfg);
+  }
+  try { Usion.init(go); } catch (e) { go({}); }
+  setTimeout(() => { if (!started) go(Usion.config || {}); }, 4000); // host silent → still playable
+}
+
+/* ---- tiny helpers ---- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const rnd = n => Math.floor(Math.random() * n);
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function haptic(ms) { try { navigator.vibrate && navigator.vibrate(ms || 15); } catch (e) {} }
+function fmtTime(s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 800); }
+
+/* ---- WebAudio sfx (no assets) ---- */
+const Sfx = (() => {
+  let ctx = null, on = true;
+  try { on = localStorage.getItem('usion_sfx') !== '0'; } catch (e) {}
+  function ac() { if (!ctx) { try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } return ctx; }
+  function tone(f, d, type, vol) {
+    if (!on) return; const c = ac(); if (!c) return;
+    try { const o = c.createOscillator(), g = c.createGain(); o.type = type || 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(vol || 0.07, c.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + d);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d); } catch (e) {}
+  }
+  return {
+    ok() { tone(660, 0.08); setTimeout(() => tone(880, 0.1), 60); },
+    bad() { tone(180, 0.18, 'square', 0.05); },
+    tick() { tone(1000, 0.03, 'square', 0.03); },
+    win() { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => tone(f, 0.15), i * 90)); },
+    toggle() { on = !on; try { localStorage.setItem('usion_sfx', on ? '1' : '0'); } catch (e) {} return on; },
+    get on() { return on; }
+  };
+})();
+function bindTopbar() {
+  const lb = $('#langBtn'); if (lb) lb.onclick = () => I18N.toggle();
+  const sb = $('#sfxBtn'); if (sb) { sb.textContent = Sfx.on ? '🔊' : '🔈'; sb.onclick = () => { sb.textContent = Sfx.toggle() ? '🔊' : '🔈'; }; }
+}
+/* block scroll on play surfaces */
+document.addEventListener('touchmove', e => { if (e.target.closest && e.target.closest('.play')) e.preventDefault(); }, { passive: false });
+</script>
+<script>
+I18N.register({
+  mn:{title:'Өнгө хурд',score:'Оноо',combo:'Комбо',best:'Дээд',start:'Эхлэх',again:'Дахин',modes:'Горим',timeUp:'Цаг дууслаа!',
+      rules:'Үгийг БИШ, үсгийн ӨНГИЙГ дар! 60 секунд. Дараалан зөв дарвал комбо өснө, алдвал комбо тасарч 2 секунд хасагдана.',
+      modeClassic:'Классик',modeReverse:'Урвуу',modeChaos:'Хаос',
+      hintClassic:'Үсгийн ӨНГИЙГ дар',hintReverse:'Бичсэн ҮГИЙГ дар',hintChaosA:'⬛ ӨНГИЙГ дар',hintChaosB:'🔤 ҮГИЙГ дар',
+      newBest:'🎉 Шинэ дээд амжилт!',accuracy:'Нарийвчлал {a}% · Хамгийн урт комбо {c}',
+      red:'УЛААН',blue:'ЦЭНХЭР',green:'НОГООН',yellow:'ШАР',purple:'ЯГААН',orange:'УЛБАР'},
+  en:{title:'Color Dash',score:'Score',combo:'Combo',best:'Best',start:'Start',again:'Play again',modes:'Modes',timeUp:"Time's up!",
+      rules:'Tap the COLOR of the letters, NOT the word! 60 seconds. Consecutive hits build a combo; a miss resets it and costs 2 seconds.',
+      modeClassic:'Classic',modeReverse:'Reverse',modeChaos:'Chaos',
+      hintClassic:'Tap the ink COLOR',hintReverse:'Tap the WORD',hintChaosA:'⬛ Tap the COLOR',hintChaosB:'🔤 Tap the WORD',
+      newBest:'🎉 New best score!',accuracy:'Accuracy {a}% · Longest combo {c}',
+      red:'RED',blue:'BLUE',green:'GREEN',yellow:'YELLOW',purple:'PURPLE',orange:'ORANGE'}
+});
+const COLORS={red:'#ef4444',blue:'#3b82f6',green:'#22c55e',yellow:'#facc15',purple:'#a855f7',orange:'#f97316'};
+const KEYS=Object.keys(COLORS),DUR=60;
+let mode='classic',score=0,combo=0,maxCombo=0,hits=0,misses=0,timeLeft=DUR,timer=null,cur=null,running=false,askWord=false,roundStart=0,best=0;
+
+function newRound(){
+  const opts=shuffle(KEYS.slice()).slice(0,4);
+  const wordKey=opts[rnd(4)];let inkKey=opts[rnd(4)];
+  if(Math.random()<.75){const o=opts.filter(k=>k!==wordKey);inkKey=o[rnd(o.length)];}
+  askWord = mode==='reverse' ? true : mode==='chaos' ? Math.random()<.5 : false;
+  cur={wordKey,inkKey,opts,answer:askWord?wordKey:inkKey};
+  const w=$('#word');w.textContent=I18N.t(wordKey);w.style.color=COLORS[inkKey];w.classList.remove('pop');void w.offsetWidth;w.classList.add('pop');
+  const h=$('#hint');h.textContent=mode==='classic'?I18N.t('hintClassic'):mode==='reverse'?I18N.t('hintReverse'):(askWord?I18N.t('hintChaosB'):I18N.t('hintChaosA'));
+  h.style.color=mode==='chaos'?(askWord?'#facc15':'#60a5fa'):'';
+  const g=$('#grid');g.innerHTML='';
+  opts.forEach(k=>{const b=document.createElement('button');b.className='tile';b.style.background=COLORS[k];b.setAttribute('aria-label',I18N.t(k));b.onpointerdown=e=>{e.preventDefault();pick(k);};g.appendChild(b);});
+  roundStart=performance.now();
+}
+function pick(k){
+  if(!running)return;
+  if(k===cur.answer){
+    const rt=performance.now()-roundStart;combo++;maxCombo=Math.max(maxCombo,combo);hits++;
+    const mult=Math.min(5,1+Math.floor(combo/5));const bonus=rt<600?5:rt<1000?3:rt<1500?1:0;
+    score+=(10+bonus)*mult;$('#combo').textContent='×'+mult;Sfx.ok();haptic(10);
+    if(combo%5===0)toast('🔥 '+combo);
+  }else{
+    combo=0;misses++;score=Math.max(0,score-5);timeLeft=Math.max(0,timeLeft-2);
+    $('#combo').textContent='×1';Sfx.bad();haptic(40);$('#word').classList.add('shake');setTimeout(()=>$('#word').classList.remove('shake'),260);
+  }
+  $('#score').textContent=score;newRound();
+}
+function start(){
+  score=0;combo=0;maxCombo=0;hits=0;misses=0;timeLeft=DUR;running=true;
+  $('#score').textContent=0;$('#combo').textContent='×1';$('#menuOv').hidden=true;$('#endOv').hidden=true;
+  $('#modeBtn').textContent=I18N.t(mode==='classic'?'modeClassic':mode==='reverse'?'modeReverse':'modeChaos');
+  newRound();let last=performance.now();clearInterval(timer);
+  timer=setInterval(()=>{const n=performance.now();timeLeft-=(n-last)/1000;last=n;$('#tbar').style.width=Math.max(0,timeLeft/DUR*100)+'%';if(timeLeft<=10&&timeLeft>0&&Math.floor(timeLeft)!==Math.floor(timeLeft+0.1))Sfx.tick();if(timeLeft<=0)end();},100);
+}
+async function end(){
+  clearInterval(timer);running=false;$('#tbar').style.width='0%';
+  const acc=hits+misses?Math.round(hits/(hits+misses)*100):0;
+  const isBest=score>best;if(isBest){best=score;$('#best').textContent=best;Store.set('best',best);}
+  $('#finalScore').textContent=score;
+  $('#endMsg').textContent=(isBest&&score>0?I18N.t('newBest')+' ':'')+I18N.t('accuracy',{a:acc,c:maxCombo});
+  $('#endOv').hidden=false;Sfx.win();
+  const r=await Board.submit(score,{mode,accuracy:acc,maxCombo});
+  if(r&&typeof r.best==='number'&&r.best>best){best=r.best;$('#best').textContent=best;Store.set('best',best);}
+  Board.render($('#lb'));
+}
+$('#modeChips').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;$$('#modeChips .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');mode=c.dataset.mode;Store.set('mode',mode);};
+$('#menuStart').onclick=start;$('#againBtn').onclick=start;
+function openMenu(){clearInterval(timer);running=false;$('#endOv').hidden=true;$('#menuOv').hidden=false;}
+$('#modeBtn').onclick=openMenu;$('#menuBtn2').onclick=openMenu;
+window.addEventListener('langchange',()=>{if(cur&&running)$('#word').textContent=I18N.t(cur.wordKey);$('#modeBtn').textContent=I18N.t(mode==='classic'?'modeClassic':mode==='reverse'?'modeReverse':'modeChaos');});
+
+bootApp(async ()=>{
+  best=(await Store.get('best'))||0;$('#best').textContent=best;
+  const m=await Store.get('mode');if(m&&['classic','reverse','chaos'].includes(m)){mode=m;$$('#modeChips .chip').forEach(c=>c.classList.toggle('on',c.dataset.mode===mode));}
+  start(); // single mode: play instantly, zero taps
+});
+</script>
+</body>
+</html>

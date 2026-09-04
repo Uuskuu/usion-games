@@ -1,0 +1,37 @@
+[
+  {
+    "slug": "color-dash",
+    "age": "10-20",
+    "name": "Өнгө хурд · Color Dash",
+    "description": "Үгийг биш, үсгийн ӨНГИЙГ хурдан дар! 60 секундын рефлексийн тоглоом — Классик, Урвуу, Хаос горим, комбо, найзуудтай оноо тэмцэх. / Tap the ink color, not the word — 60-second Stroop reflex game with combos.",
+    "leaderboard": { "enabled": true, "order": "desc", "max_score": 5000 }
+  },
+  {
+    "slug": "type-rush",
+    "age": "20-30",
+    "name": "Хурдан бичээч · Type Rush",
+    "description": "Монгол зүйр цэцэн үг, англи өгүүлбэрийг хурдан, зөв бичих уралдаан. WPM, нарийвчлал, 3 түвшин. / Typing race on Mongolian proverbs and English quotes — WPM, accuracy, 3 levels.",
+    "leaderboard": { "enabled": true, "order": "desc", "max_score": 3000 }
+  },
+  {
+    "slug": "nonogram",
+    "age": "30-40",
+    "name": "Зурган логик · Nonogram",
+    "description": "Мөр, баганын тоон заалтаар нүднүүдийг будаж далд зургийг гарга. 5×5, 7×7, 10×10 логик puzzle. / Picross-style logic puzzle: use row and column clues to reveal the hidden picture.",
+    "leaderboard": { "enabled": true, "order": "asc" }
+  },
+  {
+    "slug": "pair-match",
+    "age": "40-50",
+    "name": "Хос олох · Pair Match",
+    "description": "Картуудыг эргүүлж ижил хосыг санаж ол. Амьтад, хоол, 12 жил, Монгол сэдэвт багцууд; 4×4-өөс 6×6. / Memory pairs game with Mongolian-themed card sets, 4×4 to 6×6.",
+    "leaderboard": { "enabled": true, "order": "desc", "max_score": 6000 }
+  },
+  {
+    "slug": "sudoku",
+    "age": "50-60",
+    "name": "Судоку · Sudoku",
+    "description": "Классик 9×9 Судоку — хялбар/дунд/хүнд, том товчлуур, тэмдэглэл, буцаах, зөвлөмж, автомат хадгалалт. / Classic Sudoku with big controls, notes, undo, hints and auto-save.",
+    "leaderboard": { "enabled": true, "order": "desc", "max_score": 4000 }
+  }
+]
