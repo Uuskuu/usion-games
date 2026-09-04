@@ -36,6 +36,8 @@ src/_shared.js      SDK давхарга: stub (host-гүй үед), i18n, Store
 src/_shared.css     дизайн систем (black/white flat, dark/light токен)
 src/<game>.html     тоглоом бүр — /*SHARED_CSS*/ /*SHARED_JS*/ <!--SDK--> гэсэн placeholder-той
 build.py            → dist/<game>/index.html (Path B: SDK <script> tag орсон). `--path-a` бол tag-гүй (AI Creator/S3).
+                    Ганц тоглоомтой үед dist/index.html-ийг мөн тоглоом болгож бичнэ — host-ын root нээмэгц
+                    жагсаалт харагдалгүй шууд тоглоом эхэлнэ.
 test.js             Playwright smoke test (fake host SDK, тоглоом бүрийг тоглож submit шалгана)
 games.json          нэр, тайлбар, leaderboard тохиргоо
 publish.py          Path C — API токеноор registry-д бүртгэх/шинэчлэх
@@ -53,7 +55,7 @@ NODE_PATH=$(npm root -g) node test.js # тест (playwright шаардлага�
 ## Нийтлэх (Path C)
 
 1. `dist/`-г статик хостод байршуул (Vercel: `npx vercel dist --prod`, эсвэл GitHub Pages / S3).
-   Тоглоом бүрийн URL: `https://<host>/<slug>/`.
+   Root (`https://<host>/`) болон `https://<host>/type-rush/` хоёул тоглоомыг үзүүлнэ.
 2. Usion апп → **Service Creator → Agent API Access** → токен (`usion_sk_…`).
 3. ```bash
    export USION_API_TOKEN=usion_sk_...
