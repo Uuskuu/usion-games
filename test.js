@@ -63,6 +63,21 @@ async function newPage(browser, opts) {
     const overlays = await page.$$eval('.overlay:not([hidden])', e => e.length);
     if (overlays !== 0) fail('solo', 'overlay visible at launch: ' + overlays);
     await page.screenshot({ path: 'shots/type-rush-1-solo.png' });
+    // keyboard open: the whole game must still fit above it, with nothing panned off screen
+    await page.setViewportSize({ width: 390, height: 420 });
+    await page.waitForTimeout(300);
+    const fits = await page.evaluate(() => {
+      const h = window.innerHeight;
+      const off = ['.stats', '#tbarw', '#typebox'].filter(sel => {
+        const r = document.querySelector(sel).getBoundingClientRect();
+        return r.top < -1 || r.bottom > h + 1;
+      });
+      return { off, scrolled: window.scrollY };
+    });
+    if (fits.off.length || fits.scrolled) fail('solo', `keyboard layout: offscreen=${fits.off.join(',')} scrollY=${fits.scrolled}`);
+    await page.screenshot({ path: 'shots/type-rush-11-keyboard.png' });
+    await page.setViewportSize({ width: 390, height: 780 });
+    await page.waitForTimeout(250);
     const nSolo = await page.evaluate(() => R.sents);
     for (let i = 0; i < nSolo; i++) { const t = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', t, { delay: 4 }); }
     await page.waitForTimeout(400);

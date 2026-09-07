@@ -229,9 +229,9 @@ body{
 .racer .bub{left:auto;right:0;bottom:30px}
 /* ---- typing surface: the text IS the input ---- */
 .typebox{
-  position:relative;width:100%;flex:1 1 auto;max-height:min(42vh,300px);cursor:text;
+  position:relative;width:100%;flex:1 1 auto;max-height:min(38vh,280px);cursor:text;
   background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);
-  padding:20px 18px;min-height:136px;transition:border-color .15s;
+  padding:18px 16px;min-height:92px;transition:border-color .15s;
 }
 .typebox.on{border-color:var(--blue)}
 .text{
@@ -249,7 +249,7 @@ body{
 @keyframes caret{0%,50%{opacity:1}50.01%,100%{opacity:0}}
 /* the real input sits invisibly on top so the phone keyboard opens on tap */
 .inp{
-  position:absolute;inset:0;width:100%;height:100%;padding:20px 18px;margin:0;
+  position:absolute;inset:0;width:100%;height:100%;padding:18px 16px;margin:0;
   background:transparent;border:0;outline:none;resize:none;overflow:hidden;
   color:transparent;caret-color:transparent;font-size:16px;font-family:inherit;line-height:1.6;
 }
@@ -297,7 +297,7 @@ body{
   <div class="typing">
     <div class="typebox" id="typebox">
       <div class="text" id="text"></div>
-      <input class="inp" id="inp" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="type here">
+      <input class="inp" id="inp" autofocus inputmode="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="type here">
       <div class="tap" id="tapHint" data-i18n="tapHint"></div>
     </div>
     <div class="author" id="author"></div>
@@ -870,14 +870,31 @@ inp.addEventListener('input',()=>{
 box.addEventListener('pointerdown',()=>{ if(running)setTimeout(focusInput,0); });
 /* a phone only raises the keyboard from inside a user gesture, so treat ANY tap on the
    playfield (and the countdown) as the gesture that opens it */
-document.addEventListener('pointerdown',e=>{
+function tapAnywhere(e){
   if(!running&&$('#cdown').hidden)return;
-  if(e.target.closest('button,.overlay,.sheet,#chatInp'))return;
-  setTimeout(focusInput,0);
-},{passive:true});
+  if(e.target.closest&&e.target.closest('button,.overlay,.sheet,#chatInp'))return;
+  setTimeout(forceKeyboard,0);
+}
+['pointerdown','touchstart'].forEach(ev=>document.addEventListener(ev,tapAnywhere,{passive:true}));
 inp.addEventListener('focus',()=>box.classList.add('on'));
 inp.addEventListener('blur',()=>box.classList.remove('on'));
-function focusInput(){ try{ inp.focus({preventScroll:true}); const n=inp.value.length;inp.setSelectionRange(n,n); }catch(e){} }
+function focusInput(){
+  try{ inp.focus({preventScroll:true}); const n=inp.value.length;inp.setSelectionRange(n,n); }catch(e){}
+  try{ window.scrollTo(0,0); }catch(e){}       // undo any pan the system did to reveal the field
+}
+/* A WebView usually raises the keyboard only inside a user gesture, and a game opened from the
+   feed has had none. Ask repeatedly for the first second: some WebViews grant it, and the moment
+   any real gesture arrives the pending attempt succeeds. */
+let kbTimer=null;
+function forceKeyboard(){
+  clearInterval(kbTimer);
+  let tries=0;
+  focusInput();
+  kbTimer=setInterval(()=>{
+    focusInput();
+    if(document.activeElement===inp||++tries>10)clearInterval(kbTimer);
+  },130);
+}
 
 function startRound(cfg){
   R.limit=cfg.limit;R.lvl=cfg.lvl;R.tl=cfg.tl;R.seed=cfg.seed;R.mp=!!cfg.mp;R.ended=false;R.hostT=null;overtime=0;
@@ -901,7 +918,7 @@ function startRound(cfg){
     }
   },200);
   clearInterval(R.loop);R.loop=setInterval(tick,66);
-  setTimeout(focusInput,60);
+  forceKeyboard();
 }
 
 /* ---------- solo: instant play, you against your own record ---------- */
@@ -1325,19 +1342,19 @@ function openRecords(){
 $('#lvlChips').onclick=e=>{ const c=e.target.closest('.chip');if(c)pickLvl(c.dataset.lvl); };
 $('#hallLvl').onclick=e=>{ const c=e.target.closest('.chip');if(c&&isHost())pickLvl(c.dataset.lvl); };
 $('#tlChips').onclick=e=>{ const c=e.target.closest('.chip');if(!c)return;tl=c.dataset.tl;Store.set('tl',tl);markChips();if(phase==='hall')shareInfo(); };
-$('#menuStart').onclick=()=>{ focusInput();startSolo(); };
+$('#menuStart').onclick=()=>{ forceKeyboard();startSolo(); };
 $('#setBtn').onclick=openMenu;
 $('#menuBtn2').onclick=openMenu;
 $('#recBtn').onclick=openRecords;
 $('#recClose').onclick=()=>{ $('#recOv').hidden=true; };
-$('#againBtn').onclick=()=>{ if(joinedRoom)openHall(joinedRoom);else{ focusInput();startSolo(); } };
+$('#againBtn').onclick=()=>{ if(joinedRoom)openHall(joinedRoom);else{ forceKeyboard();startSolo(); } };
 $('#menuInvite').onclick=inviteFriends;
 $('#endInvite').onclick=inviteFriends;
 $('#recInvite').onclick=inviteFriends;
 $('#inviteBtn').onclick=inviteFriends;
 $('#readyBtn').onclick=()=>{ myReady=!myReady;Sfx.tick();shareInfo(); };
-$('#startBtn').onclick=()=>{ if(isHost()&&Roster.allReady()){ focusInput();hostStart(false); } };
-$('#botsBtn').onclick=()=>{ if(isHost()){ focusInput();hostStart(true); } };
+$('#startBtn').onclick=()=>{ if(isHost()&&Roster.allReady()){ forceKeyboard();hostStart(false); } };
+$('#botsBtn').onclick=()=>{ if(isHost()){ forceKeyboard();hostStart(true); } };
 $('#chatBtn').onclick=openChat;
 $('#chatSheet').onclick=e=>{ if(e.target.id==='chatSheet'){$('#chatSheet').hidden=true;focusInput();} };
 $('#chatSend').onclick=()=>{ if(Chat.send($('#chatInp').value)){ $('#chatInp').value='';$('#chatSheet').hidden=true;focusInput(); } };
@@ -1348,6 +1365,23 @@ window.addEventListener('langchange',()=>{
   if(phase==='hall')paintHall();
   if(!$('#recOv').hidden)$('#recGrid').innerHTML=recRows(null);
 });
+
+/* The system pans the whole window to reveal a focused field, which shoves the track and the
+   clock off screen. Sizing the page to the VISUAL viewport instead keeps everything above the
+   keyboard, so nothing has to be panned. */
+function fitViewport(){
+  const vv=window.visualViewport;
+  const h=vv?Math.round(vv.height):window.innerHeight;
+  if(h>120)document.body.style.height=h+'px';
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',fitViewport);
+  window.visualViewport.addEventListener('scroll',fitViewport);
+}
+window.addEventListener('resize',fitViewport);
+window.addEventListener('orientationchange',()=>setTimeout(fitViewport,250));
+fitViewport();
 
 /* ---------- boot ---------- */
 bootApp(async (cfg)=>{
@@ -1361,6 +1395,7 @@ bootApp(async (cfg)=>{
   markChips();
   Roster.reset(cfg.playerIds&&cfg.playerIds.length?cfg.playerIds:[Roster.myId],Roster.myId);
   Roster.set(Roster.myId,myInfo());
+  fitViewport();
   wireNet();                                                    // up front: a solo round can be promoted
   if(!launchedSolo(cfg)&&cfg.roomId)openHall(cfg.roomId);       // chat invite → waiting hall
   else startSolo();                                             // GameTok / Explore → instant play
