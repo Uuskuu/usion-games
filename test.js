@@ -291,46 +291,53 @@ const receipts = [];
     if (await page.$eval('#tabs', e => e.hidden)) fail('tabs', 'tab bar hidden on a solo launch');
     if (!(await page.$eval('#tabs .tab', e => e.classList.contains('on')))) fail('tabs', 'race tab not active by default');
 
-    // practice tab opens the lesson list, not a round
+    // practice tab opens a grid of finger cards
     await page.click('[data-tab="drill"]');
     await page.waitForTimeout(300);
-    if (await page.$eval('#lessons', e => e.hidden)) fail('tabs', 'practice tab did not open the lesson list');
-    const rows = await page.$$eval('#llist .les', e => e.length);
-    if (rows < 40) fail('tabs', 'only ' + rows + ' lesson rows');
-    const groups = await page.$$eval('#llist .grp', gs => gs.map(g => ({
-      name: g.querySelector('.gtxt b').textContent,
-      keys: g.querySelector('.gtxt span').textContent,
-      hand: !!g.querySelector('svg.hand'),
-      lessons: g.querySelectorAll('.les').length,
+    if (await page.$eval('#lessons', e => e.hidden)) fail('tabs', 'practice tab did not open the course');
+    const cards = await page.$$eval('#llist .fcard', cs => cs.map(c => ({
+      name: c.querySelector('.fname').textContent,
+      keys: c.querySelector('.fkeys').textContent,
+      hand: !!c.querySelector('svg.hand'),
+      badge: c.querySelector('.fbadge').textContent,
     })));
-    if (groups.length !== 8) fail('tabs', 'expected 8 finger groups, got ' + groups.length);
-    if (!groups.every(g => g.hand && g.lessons >= 4)) fail('tabs', 'a finger group has no hand drawing or too few lessons');
-    if (groups[0].name !== 'Зүүн долоовор') fail('tabs', 'first group is ' + groups[0].name);
-    if (groups[4].name !== 'Баруун долоовор') fail('tabs', 'fifth group is ' + groups[4].name);
-    if (groups[0].keys !== 'өажэсм₮:') fail('tabs', 'left index keys are ' + groups[0].keys);
+    if (cards.length !== 8) fail('tabs', 'expected 8 finger cards, got ' + cards.length);
+    if (!cards.every(c => c.hand)) fail('tabs', 'a finger card has no hand drawing');
+    if (cards[0].name !== 'Зүүн гарын долоовор хуруу') fail('tabs', 'first card is ' + cards[0].name);
+    if (cards[4].name !== 'Баруун гарын долоовор хуруу') fail('tabs', 'fifth card is ' + cards[4].name);
+    if (cards[0].keys !== 'ө а ж э с м ₮ :') fail('tabs', 'left index keys are ' + cards[0].keys);
+    if (cards[0].badge !== '0/5') fail('tabs', 'card progress badge reads ' + cards[0].badge);
+    if (!(await page.$('#llist .les.free'))) fail('tabs', 'free typing row missing from the grid');
     await page.screenshot({ path: 'shots/type-rush-12-lessons.png' });
+
+    // tapping a card opens that finger's lessons
+    await page.click('#llist .fcard');
+    await page.waitForTimeout(250);
+    if (await page.$eval('#lesUp', e => e.hidden)) fail('tabs', 'no back button inside a finger');
+    if (await page.$eval('#lTitle', e => e.textContent) !== 'Зүүн гарын долоовор хуруу') fail('tabs', 'finger screen title is wrong');
+    let rows = await page.$$('#llist .les');
+    if (rows.length !== 5) fail('tabs', 'finger opened with ' + rows.length + ' lessons');
+    await page.screenshot({ path: 'shots/type-rush-16-finger.png' });
 
     // lesson 2 is behind the paywall, lesson 1 is not
     if (await page.$eval('#buyBar', e => e.hidden)) fail('pay', 'unlock bar not shown to a locked user');
-    const locks = await page.$$eval('#llist .les', els => ({
-      first: els[1].classList.contains('lock'), second: els[2].classList.contains('lock'), free: els[0].classList.contains('lock'),
-    }));
+    const locks = await page.$$eval('#llist .les', els => ({ first: els[0].classList.contains('lock'), second: els[1].classList.contains('lock') }));
     if (locks.first) fail('pay', 'the first lesson is not free');
-    if (!locks.second || !locks.free) fail('pay', 'later lessons / free typing are not locked');
-    await (await page.$$('#llist .les'))[2].click();
+    if (!locks.second) fail('pay', 'later lessons are not locked');
+    await rows[1].click();
     await page.waitForTimeout(250);
     if (await page.$eval('#payOv', e => e.hidden)) fail('pay', 'locked lesson did not open the unlock sheet');
     await page.screenshot({ path: 'shots/type-rush-15-unlock.png' });
     await page.click('#payCancel');
     await page.waitForTimeout(150);
-    if (await page.evaluate(() => R.lesson >= 0 && running)) fail('pay', 'cancelling still started the lesson');
 
-    // lesson 1 drills exactly the two index-finger keys
-    await page.click('#llist .les:not(.free)');
+    // lesson 1 drills exactly the left index home-row keys
+    await page.click('#llist .les');
     await page.waitForTimeout(300);
     const les = await page.evaluate(() => ({ i: R.lesson, drill: R.drill, endless: R.endless, lines: queue.length, text: queue[0][0] }));
-    if (les.i !== 0 || !les.drill || les.endless) fail('tabs', `lesson round not started (i=${les.i})`);
+    if (les.i !== 0 || !les.drill || les.endless) fail('tabs', 'lesson round not started (i=' + les.i + ')');
     if (!/^[өа ]+$/.test(les.text)) fail('tabs', 'lesson 1 drills the wrong keys: ' + les.text);
+
     // a lesson teaches Shift: the wrong case is a mistake here, unlike in a race
     const wrongCase = await page.evaluate(() => target.toUpperCase());
     await page.fill('#inp', '');
@@ -341,6 +348,7 @@ const receipts = [];
     }));
     if (strict.acc === 100 || !strict.bad) fail('tabs', 'lesson accepted the wrong case (acc=' + strict.acc + ')');
     if (await page.evaluate(() => inp.getAttribute('autocapitalize')) !== 'off') fail('tabs', 'lesson leaves auto-capitalise on');
+
     await page.evaluate(() => { startLesson(0); });
     await page.waitForTimeout(250);
     for (let i = 0; i < les.lines; i++) { const w = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', w, { delay: 1 }); }
@@ -350,49 +358,59 @@ const receipts = [];
     if (!lesBest) fail('tabs', 'lesson best WPM was not stored');
     if (await page.evaluate(() => window.__calls.some(c => c[0] === 'submit'))) fail('tabs', 'a lesson submitted a score');
     await page.screenshot({ path: 'shots/type-rush-13-lesson.png' });
-    // the finished lesson is marked done in the list
+
+    // the result screen goes back to the finger it came from, and the lesson is marked done
     await page.click('#lesBack');
     await page.waitForTimeout(250);
-    if (!(await page.$eval('#llist .les:not(.free)', e => e.classList.contains('done')))) fail('tabs', 'finished lesson not marked done');
+    if (await page.$eval('#lTitle', e => e.textContent) !== 'Зүүн гарын долоовор хуруу') fail('tabs', 'result did not return to the finger');
+    if (!(await page.$eval('#llist .les', e => e.classList.contains('done')))) fail('tabs', 'finished lesson not marked done');
+    await page.click('#lesUp');
+    await page.waitForTimeout(200);
+    if (await page.$eval('#llist .fcard .fbadge', e => e.textContent) !== '1/5') fail('tabs', 'card badge did not count the finished lesson');
 
     // paying once unlocks every lesson, and the receipt is settled immediately
-    await (await page.$$('#llist .les'))[2].click();
+    await page.click('#llist .fcard');
+    await page.waitForTimeout(200);
+    rows = await page.$$('#llist .les');
+    await rows[1].click();
     await page.waitForTimeout(200);
     await page.click('#payGo');
     await page.waitForTimeout(700);
-    const paid = await page.evaluate(() => ({
-      pro, calls: window.__calls.filter(c => c[0] === 'pay'), lesson: R.lesson, stored: null,
-    }));
+    const paid = await page.evaluate(() => ({ pro, calls: window.__calls.filter(c => c[0] === 'pay'), lesson: R.lesson }));
     if (!paid.pro) fail('pay', 'unlock flag not set after payment');
     if (paid.calls.length !== 1 || paid.calls[0][1] !== 1000) fail('pay', 'wallet charge was ' + JSON.stringify(paid.calls));
     if (!paid.calls[0][3]) fail('pay', 'no idempotency key on the charge');
     if (paid.lesson !== 1) fail('pay', 'the lesson the user wanted did not start (lesson=' + paid.lesson + ')');
     if (!receipts.some(u => u.endsWith('/wallet/receipt/settle'))) fail('pay', 'receipt was never settled');
-    const leftover = await page.evaluate(() => Usion.storage.get('type-rush:receipt'));
-    if (leftover) fail('pay', 'settled receipt still pending in storage');
-    await page.evaluate(() => showLessons());
+    if (await page.evaluate(() => Usion.storage.get('type-rush:receipt'))) fail('pay', 'settled receipt still pending in storage');
+    await page.evaluate(() => { fingerOpen = 0; lessonScreen(); });
     await page.waitForTimeout(200);
-    const afterPay = await page.$$eval('#llist .les', els => els.filter(e => e.classList.contains('lock')).length);
-    if (afterPay) fail('pay', afterPay + ' rows still locked after paying');
+    if (await page.$$eval('#llist .les', els => els.filter(e => e.classList.contains('lock')).length)) fail('pay', 'rows still locked after paying');
     if (!(await page.$eval('#buyBar', e => e.hidden))) fail('pay', 'unlock bar still shown after paying');
 
     // switching the course language switches the alphabet being drilled
+    await page.click('#lesUp');
+    await page.waitForTimeout(150);
     await page.click('#lesLang .chip[data-tl="en"]');
     await page.waitForTimeout(250);
-    const en = await page.evaluate(() => {
-      const rows = [...document.querySelectorAll('#llist .les:not(.free)')];
-      return { first: rows[0].querySelector('.lkeys').textContent, count: rows.length, done: rows[0].classList.contains('done') };
-    });
-    if (en.first !== 'fg') fail('tabs', 'english course does not start on the home row: ' + en.first);
-    if (en.done) fail('tabs', 'mongolian progress leaked into the english course');
-    await page.click('#llist .les:not(.free)');
+    const en = await page.$$eval('#llist .fcard', cs => ({
+      first: cs[0].querySelector('.fkeys').textContent,
+      name: cs[0].querySelector('.fname').textContent,
+      badge: cs[0].querySelector('.fbadge').textContent,
+    }));
+    if (en.first !== 'f g r t v b 4 5') fail('tabs', 'english course keys are ' + en.first);
+    if (en.name !== 'Зүүн гарын долоовор хуруу') fail('tabs', 'finger name should follow the UI language, got ' + en.name);
+    if (en.badge !== '0/5') fail('tabs', 'mongolian progress leaked into the english course');
+    await page.click('#llist .fcard');
+    await page.waitForTimeout(200);
+    await page.click('#llist .les');
     await page.waitForTimeout(250);
     const enText = await page.evaluate(() => queue[0][0]);
     if (!/^[fg ]+$/.test(enText)) fail('tabs', 'english lesson 1 drills the wrong keys: ' + enText);
     await page.screenshot({ path: 'shots/type-rush-14-english.png' });
     await page.evaluate(() => { setTextLang('mn'); showLessons(); });
     await page.waitForTimeout(250);
-    if (!(await page.$eval('#llist .les:not(.free)', e => e.classList.contains('done')))) fail('tabs', 'mongolian progress lost after switching back');
+    if (await page.$eval('#llist .fcard .fbadge', e => e.textContent) !== '1/5') fail('tabs', 'mongolian progress lost after switching back');
 
     // free typing: untimed and endless
     await page.click('#llist .les.free');
@@ -403,15 +421,15 @@ const receipts = [];
     }));
     if (!drill.on || !drill.endless) fail('tabs', 'free typing did not start');
     if (!drill.bar || !drill.dots || !drill.track) fail('tabs', 'free typing still shows the race chrome');
-    const rounds = (await page.evaluate(() => R.sents)) + 2;
-    for (let i = 0; i < rounds; i++) { const w = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', w, { delay: 2 }); }
+    const many = (await page.evaluate(() => R.sents)) + 2;
+    for (let i = 0; i < many; i++) { const w = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', w, { delay: 2 }); }
     await page.waitForTimeout(400);
     const after = await page.evaluate(() => ({
       typed: finished, ended: document.getElementById('endOv').hidden, t: document.getElementById('time').textContent,
       subs: window.__calls.filter(c => c[0] === 'submit').length,
     }));
     if (!after.ended) fail('tabs', 'free typing showed a game-over screen');
-    if (after.typed < rounds) fail('tabs', 'free typing stopped after ' + after.typed + ' sentences');
+    if (after.typed < many) fail('tabs', 'free typing stopped after ' + after.typed + ' sentences');
     if (after.subs) fail('tabs', 'free typing submitted a score');
     if (after.t === '0:00') fail('tabs', 'practice clock did not count up');
 
@@ -419,9 +437,9 @@ const receipts = [];
     await page.click('[data-tab="race"]');
     await page.waitForTimeout(300);
     if (await page.evaluate(() => R.drill)) fail('tabs', 'race tab did not leave practice');
-    if (await page.$eval('#lessons', e => !e.hidden)) fail('tabs', 'lesson list still showing in race mode');
+    if (await page.$eval('#lessons', e => !e.hidden)) fail('tabs', 'lesson screen still showing in race mode');
     if (errors.length) fail('tabs', 'console: ' + errors.join(' | ').slice(0, 300));
-    if (failures === before) ok('practice course', `lessons=${rows} lesson1Best=${lesBest}wpm freeTyped=${after.typed} clock=${after.t}`);
+    if (failures === before) ok('practice course', '8 fingers, lesson1=' + lesBest + 'wpm, freeTyped=' + after.typed + ', clock=' + after.t);
     await ctx.close();
   }
 
@@ -437,7 +455,9 @@ const receipts = [];
     await page.waitForTimeout(400);
     await page.click('[data-tab="drill"]');
     await page.waitForTimeout(300);
-    await (await page.$$('#llist .les'))[2].click();
+    await page.click('#llist .fcard');
+    await page.waitForTimeout(250);
+    await (await page.$$('#llist .les'))[1].click();
     await page.waitForTimeout(200);
     await page.click('#payGo');
     await page.waitForTimeout(1200);

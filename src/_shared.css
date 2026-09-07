@@ -210,15 +210,31 @@ body{
 .lkeys{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:3px;flex:none}
 .lbest{font-size:11px;font-weight:800;color:var(--ok);font-variant-numeric:tabular-nums;flex:none}
 
-/* ---- finger groups ---- */
-.grp{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
-.ghead{display:flex;align-items:center;gap:11px;padding:8px 10px;background:transparent;border:0;color:var(--fg);font-family:inherit;text-align:left;width:100%}
-.hand{width:44px;height:44px;flex:none}
-.gtxt{flex:1;min-width:0}
-.gtxt b{display:block;font-size:14px;font-weight:800;letter-spacing:-.2px}
-.gtxt span{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:2px}
-.gdone{font-size:11px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
-.grp.full .gdone{color:var(--ok)}
+/* ---- finger cards ---- */
+.fgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 10px;padding-bottom:6px}
+.fcard{display:block;width:100%;padding:0;background:transparent;border:0;color:var(--fg);font-family:inherit;text-align:left;cursor:pointer}
+.fbox{
+  display:block;position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:8px;transition:border-color .15s,box-shadow .15s,transform .08s;
+}
+.fcard:active .fbox{transform:scale(.98)}
+.fcard.done .fbox{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn) inset}
+.fcard.next .fbox{border-color:var(--line2)}
+.hand{display:block;width:100%;height:auto}
+.fbadge{
+  position:absolute;top:8px;right:8px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;
+  background:var(--card2);color:var(--muted);display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;font-variant-numeric:tabular-nums;
+}
+.fcard.done .fbadge{background:var(--warn);color:#241700}
+.fnum{display:block;margin:8px 0 1px;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.fname{display:block;font-size:12px;font-weight:600;color:var(--muted);line-height:1.3}
+.fkeys{display:block;margin-top:2px;font-size:11px;color:var(--dim);letter-spacing:1.6px;font-weight:700}
+.backb{
+  width:34px;height:34px;flex:none;background:transparent;border:1px solid var(--line);border-radius:11px;
+  color:var(--fg);font-size:18px;font-weight:700;line-height:1;cursor:pointer;
+}
+.lhand{width:40px;height:40px;flex:none}
 
 /* ---- unlock / paywall ---- */
 .payrow{display:flex;align-items:center;gap:11px;padding:12px;margin:4px 0 6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);text-align:left}
