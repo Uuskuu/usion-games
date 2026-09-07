@@ -128,7 +128,7 @@
  <div class="lessons" id="lessons" hidden>
    <div class="lhead">
      <button class="backb" id="lesUp" hidden>‹</button>
-     <svg class="lhand" id="lHand" viewBox="0 0 108 100" hidden></svg>
+     <img class="lhand" id="lHand" alt="" draggable="false" hidden>
      <div><div class="ltitle" id="lTitle"></div><div class="lsub" id="lprog"></div></div>
      <div class="chips lang" id="lesLang">
        <button class="chip on" data-tl="mn">МН</button>
@@ -468,8 +468,14 @@ function handBody(hand,finger){
   });
   return hand==='r'?'<g transform="translate(108,0) scale(-1,1)">'+g+'</g>':g;
 }
+/* build.py inlines assets/hand-<hand>-<finger>.webp here as data URIs; the drawn hand
+   above stays as the fallback when an image is missing. */
+const HAND_IMG=/*HAND_IMAGES*/{};
+function handImg(hand,finger){ return HAND_IMG[hand+'-'+finger]||null; }
 function handSvg(hand,finger){
-  return '<svg class="hand" viewBox="0 0 108 100" aria-hidden="true">'+handBody(hand,finger)+'</svg>';
+  const src=handImg(hand,finger);
+  if(src)return '<img class="hand" src="'+src+'" alt="" draggable="false">';
+  return '<svg class="hand" viewBox="0 0 112 126" aria-hidden="true">'+handBody(hand,finger)+'</svg>';
 }
 function fingerName(g){ return I18N.t((g.hand||g.h)==='l'?'fLeft':'fRight')+' '+I18N.t('f_'+(g.finger||g.f)); }
 function groupKeys(g){ return [].concat(g.rows.home,g.rows.up,g.rows.low,g.rows.num); }
@@ -783,7 +789,7 @@ function lessonScreen(){
       const n=groupDone(g);
       const card=document.createElement('button');
       card.className='fcard'+(n===g.count?' done':'');card.dataset.g=gi;
-      const box=document.createElement('span');box.className='fbox';
+      const box=document.createElement('span');box.className='fbox'+(handImg(g.hand,g.finger)?' img':'');
       box.innerHTML=handSvg(g.hand,g.finger);
       const bd=document.createElement('span');bd.className='fbadge';bd.textContent=n===g.count?'✓':n+'/'+g.count;
       box.appendChild(bd);
@@ -799,7 +805,8 @@ function lessonScreen(){
   }else{
     const g=GROUPS[fingerOpen];
     up.hidden=false;hand.hidden=false;
-    hand.innerHTML=handBody(g.hand,g.finger);
+    hand.src=handImg(g.hand,g.finger)||
+      ('data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 126">'+handBody(g.hand,g.finger)+'</svg>'));
     $('#lTitle').textContent=fingerName(g);
     $('#lprog').textContent=g.keys.join(' ');
     for(let i=g.from;i<g.from+g.count;i++)list.appendChild(lessonRow(i));

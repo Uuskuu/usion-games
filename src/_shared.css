@@ -220,7 +220,9 @@ body{
 .fcard:active .fbox{transform:scale(.98)}
 .fcard.done .fbox{border-color:var(--warn);box-shadow:0 0 0 1px var(--warn) inset}
 .fcard.next .fbox{border-color:var(--line2)}
-.hand{display:block;width:100%;height:auto}
+.fbox.img{padding:0;background:#0b1523;border-color:#1b2a42;overflow:hidden}
+.hand{display:block;width:100%;height:auto;border-radius:10px}
+img.hand{object-fit:contain}
 .fbadge{
   position:absolute;top:8px;right:8px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;
   background:var(--card2);color:var(--muted);display:flex;align-items:center;justify-content:center;
@@ -234,7 +236,7 @@ body{
   width:34px;height:34px;flex:none;background:transparent;border:1px solid var(--line);border-radius:11px;
   color:var(--fg);font-size:18px;font-weight:700;line-height:1;cursor:pointer;
 }
-.lhand{width:40px;height:40px;flex:none}
+.lhand{width:44px;height:44px;flex:none;object-fit:contain}
 
 /* ---- unlock / paywall ---- */
 .payrow{display:flex;align-items:center;gap:11px;padding:12px;margin:4px 0 6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);text-align:left}

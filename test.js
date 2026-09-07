@@ -298,11 +298,11 @@ const receipts = [];
     const cards = await page.$$eval('#llist .fcard', cs => cs.map(c => ({
       name: c.querySelector('.fname').textContent,
       keys: c.querySelector('.fkeys').textContent,
-      hand: !!c.querySelector('svg.hand'),
+      hand: !!c.querySelector('.hand'),
       badge: c.querySelector('.fbadge').textContent,
     })));
     if (cards.length !== 8) fail('tabs', 'expected 8 finger cards, got ' + cards.length);
-    if (!cards.every(c => c.hand)) fail('tabs', 'a finger card has no hand drawing');
+    if (!cards.every(c => c.hand)) fail('tabs', 'a finger card has no hand illustration');
     if (cards[0].name !== 'Зүүн гарын долоовор хуруу') fail('tabs', 'first card is ' + cards[0].name);
     if (cards[4].name !== 'Баруун гарын долоовор хуруу') fail('tabs', 'fifth card is ' + cards[4].name);
     if (cards[0].keys !== 'ө а ж э с м ₮ :') fail('tabs', 'left index keys are ' + cards[0].keys);
