@@ -189,6 +189,25 @@ body{
 .cdhint{font-size:12px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
 @keyframes count{from{opacity:0;transform:scale(1.5)}to{opacity:1;transform:scale(1)}}
 
+/* ---- lesson list ---- */
+.lessons{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
+.lhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px;flex:none}
+.ltitle{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.lsub{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+.llist{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px;padding-bottom:4px}
+.les{
+  display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;text-align:left;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;color:var(--fg);
+  font-family:inherit;font-size:14px;cursor:pointer;
+}
+.les:active{transform:scale(.99)}
+.les.done{border-color:var(--ok)}
+.les.free{background:transparent;border-style:dashed}
+.lnum{width:24px;font-size:11px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.lname{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lkeys{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:3px;flex:none}
+.lbest{font-size:11px;font-weight:800;color:var(--ok);font-variant-numeric:tabular-nums;flex:none}
+
 /* ---- bottom tabs (app shell: stays above the overlays) ---- */
 .tabs{
   position:relative;z-index:80;display:flex;gap:6px;flex:none;background:var(--bg);

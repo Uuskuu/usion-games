@@ -93,6 +93,7 @@
 .short .prog{font-size:10px}
 .short .typebox{padding:6px 0;max-height:none}
 .short .author{display:none}
+.playview{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
 .typing{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
 </style>
 </head>
@@ -106,6 +107,7 @@
   <button id="langBtn" class="tb"></button>
 </div>
 <div class="wrap">
+ <div class="playview" id="playview">
   <div class="track" id="track" hidden></div>
   <div class="stats">
     <div class="stat"><div class="l">WPM</div><div class="v" id="wpm">0</div></div>
@@ -122,6 +124,11 @@
     </div>
     <div class="author" id="author"></div>
   </div>
+ </div>
+ <div class="lessons" id="lessons" hidden>
+   <div class="lhead"><div class="ltitle" data-i18n="drillTitle"></div><div class="lsub" id="lprog"></div></div>
+   <div class="llist" id="llist"></div>
+ </div>
 </div>
 
 <nav class="tabs" id="tabs">
@@ -189,6 +196,15 @@
   </div>
 </div>
 
+<div class="overlay" id="lesOv" hidden>
+  <div class="panel">
+    <h2 id="lesTitle"></h2>
+    <div class="big" id="lesWpm">0</div>
+    <p id="lesMsg"></p>
+    <div class="row"><button class="btn" id="lesNext"></button><button class="btn sec" id="lesBack" data-i18n="drillBack"></button></div>
+  </div>
+</div>
+
 <div class="overlay" id="netOv" hidden><div class="panel"><h2 data-i18n="reconn"></h2><p data-i18n="reconnMsg"></p></div></div>
 
 <div class="sheet" id="chatSheet" hidden>
@@ -210,6 +226,9 @@ I18N.register({
       result:'{w} WPM · {a}% нарийвчлал · {n}/{t} өгүүлбэр',newBest:'🎉 Шинэ дээд амжилт!',
       sent:'Өгүүлбэр {i}/{t}',score:'оноо',ghost:'Рекорд',
       tabRace:'Уралдах',tabDrill:'Дасгал',drillCount:'Бичсэн: {n}',drillHint:'Цаггүй дасгал — оноо тооцохгүй',
+      drillTitle:'Гарын дасгал',drillDone:'{d}/{t} дасгал',drillFree:'Чөлөөт бичих',drillFreeSub:'Цаггүй, эцэсгүй',
+      drillCaps:'том үсэг',drillReview:'Давтлага',drillText:'Эх шивэх',drillBack:'Жагсаалт',drillNext:'Дараагийн',
+      drillAgain:'Дахин оролдох',drillOk:'Дасгал дууслаа',drillRes:'{w} WPM · {a}% нарийвчлал',drillNew:'🎉 Шинэ дээд WPM!',
       recTitle:'Миний амжилтууд 🏆',recBest:'Дээд оноо',recWpm:'Дээд WPM',recAcc:'Дээд нарийвчлал',
       recRaces:'Уралдаан',recWins:'Ялалт',recSents:'Бичсэн өгүүлбэр',
       hall:'Хүлээх танхим',hallWait:'Бүгд бэлэн боллоо — эхлүүлээрэй!',hallNeed:'Найзаа урьж, бэлэн болохыг хүлээ.',
@@ -229,6 +248,9 @@ I18N.register({
       result:'{w} WPM · {a}% accuracy · {n}/{t} sentences',newBest:'🎉 New best score!',
       sent:'Sentence {i}/{t}',score:'points',ghost:'Record',
       tabRace:'Race',tabDrill:'Practice',drillCount:'Typed: {n}',drillHint:'Untimed practice - nothing is scored',
+      drillTitle:'Touch-typing course',drillDone:'{d}/{t} lessons',drillFree:'Free typing',drillFreeSub:'No clock, no end',
+      drillCaps:'capitals',drillReview:'Review',drillText:'Free text',drillBack:'Lessons',drillNext:'Next',
+      drillAgain:'Try again',drillOk:'Lesson complete',drillRes:'{w} WPM · {a}% accuracy',drillNew:'🎉 New best WPM!',
       recTitle:'My records 🏆',recBest:'Best score',recWpm:'Best WPM',recAcc:'Best accuracy',
       recRaces:'Races',recWins:'Wins',recSents:'Sentences typed',
       hall:'Waiting hall',hallWait:'Everyone is ready — start the race!',hallNeed:'Invite a friend and wait for READY.',
@@ -367,12 +389,60 @@ const TEXTS={
     ['TODO: fix bug #142 (see log).','—'],
     ['Call +976-9911-2233 @ 09:00.','—']]}
 };
+/* Mongolian keyboard, taught the way a touch-typing course does: index fingers first,
+   then middle, ring and little fingers, row by row — the same order as blesson.mn/Computer. */
+const KEYPAIRS=[
+  ['ө','р'],['б','о'],['ы','л'],['а','х'],          // home row: F J, D K, S L, G H
+  ['ж','г'],['у','ш'],['ц','ү'],['ф','з'],['э','н'],// upper row: R U, E I, W O, Q P, T Y
+  ['с','т'],['ё','ь'],['ч','в'],['я','ю'],['м','и'],// lower row: V M, C comma, X dot, Z slash, B N
+  ['п','к'],['е','щ']                               // right little finger + number row
+];
+const SYMROWS=[[':','.','5','6'],['₮','_','4','7'],['"',',','3','8'],['-','%','2','9'],['№','?','1','0']];
+let LESSONS=[];
+function buildLessons(){
+  const out=[];let learned=[];
+  KEYPAIRS.forEach((pair,i)=>{
+    learned=learned.concat(pair);
+    out.push({k:'let',keys:pair.slice(),pool:learned.slice(),caps:false});
+    out.push({k:'let',keys:pair.slice(),pool:learned.slice(),caps:true});
+    if(i%2===1)out.push({k:'rev',keys:learned.slice(-4),pool:learned.slice(),caps:false});
+  });
+  SYMROWS.forEach(r=>out.push({k:'sym',keys:r.slice(),pool:r.slice(),caps:false}));
+  out.push({k:'txt',keys:[],pool:[],caps:false});
+  return out;
+}
+function lessonName(l,i){
+  if(l.k==='txt')return I18N.t('drillText');
+  if(l.k==='rev')return I18N.t('drillReview');
+  if(l.k==='sym')return l.keys.join(' ');
+  return l.keys.join(' ')+(l.caps?' · '+I18N.t('drillCaps'):'');
+}
+/* nonsense syllables built from the keys this lesson drills, weighted to the new ones */
+function drillLine(l){
+  const words=[];
+  for(let w=0;w<11;w++){
+    let s='';
+    const len=2+rnd(3);
+    for(let k=0;k<len;k++){
+      const src=(Math.random()<0.62?l.keys:l.pool);
+      let ch=src[rnd(src.length)];
+      if(l.caps&&Math.random()<0.5)ch=ch.toUpperCase();
+      s+=ch;
+    }
+    words.push(s);
+  }
+  return [words.join(' '),'—'];
+}
+function lessonQueue(l){
+  if(l.k==='txt')return freshQueue(tl,2,2);
+  return [drillLine(l),drillLine(l),drillLine(l)];
+}
 const LIMITS={1:120,2:100,3:90},SENTSN={1:3,2:4,3:5},SENTS=5,MAXW=250,GRACE=10;  // GRACE: seconds the rest get once someone finishes
 function sentsFor(l){ return SENTSN[l]||SENTS; }
 let lvl=1,tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0,best=0;
 let phase='boot';                       // 'solo' | 'hall' | 'race' | 'end'
 let joinedRoom=null,myReady=false,paintQ=false,overtime=0,tab='race';
-const R={seed:0,pending:0,mp:false,drill:false,sents:SENTS,limit:120,lvl:1,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
+const R={seed:0,pending:0,mp:false,drill:false,endless:false,lesson:-1,sents:SENTS,limit:120,lvl:1,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
 const inp=$('#inp'),box=$('#typebox');
 
 /* ---------- guarded SDK calls (written literally so the publish pipeline detects multiplayer) ---------- */
@@ -466,9 +536,10 @@ inp.addEventListener('input',()=>{
     if(!R.drill)score+=Math.round(target.length*(1+Math.max(0,timeLeft)/R.limit));
     Sfx.ok();haptic(10);
     idx++;
-    if(R.drill){                                   // endless: refill the pool and keep going
-      if(idx>=queue.length){ queue=freshQueue(tl,lvl,sentsFor(lvl));R.sents=queue.length;idx=0; }
-      load();
+    if(R.drill){
+      if(idx<queue.length){ load(); }
+      else if(R.endless){ queue=freshQueue(tl,lvl,sentsFor(lvl));R.sents=queue.length;idx=0;load(); }
+      else endLesson();
     }
     else if(idx>=R.sents){ if(R.mp)finishMine(); else end(true); }
     else load();
@@ -507,6 +578,7 @@ function forceKeyboard(){
 
 function startRound(cfg){
   R.limit=cfg.limit;R.lvl=cfg.lvl;R.tl=cfg.tl;R.seed=cfg.seed;R.mp=!!cfg.mp;R.drill=!!cfg.drill;
+  R.endless=!!cfg.endless;R.lesson=cfg.lesson===undefined?-1:cfg.lesson;
   R.ended=false;R.hostT=null;overtime=0;
   queue=cfg.queue;R.sents=queue.length;R.cum=[0];queue.forEach(q=>R.cum.push(R.cum[R.cum.length-1]+q[0].length));
   idx=0;typedChars=0;correctChars=0;errors=0;score=0;finished=0;timeLeft=R.drill?0:cfg.limit;
@@ -536,6 +608,7 @@ function startRound(cfg){
 /* ---------- solo: instant play, you against your own record ---------- */
 function startSolo(){
   stopNetLoops();
+  $('#lessons').hidden=true;$('#playview').hidden=false;
   R.bots={};R.prog={};R.seats=[Roster.myId];
   const ghostWpm=Records.get('wpm');
   if(ghostWpm>=15){                                   // a pace car set by your own best run
@@ -550,17 +623,64 @@ function startSolo(){
 function startDrill(){
   stopNetLoops();
   R.bots={};R.prog={};R.seats=[];
-  startRound({queue:freshQueue(tl,lvl,sentsFor(lvl)),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false,drill:true});
+  $('#lessons').hidden=true;$('#playview').hidden=false;
+  startRound({queue:freshQueue(tl,lvl,sentsFor(lvl)),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false,drill:true,endless:true});
   toast(I18N.t('drillHint'));
 }
-function startCurrent(){ tab==='drill'?startDrill():startSolo(); }
+function startCurrent(){ tab==='drill'?showLessons():startSolo(); }
+
+/* ---------- the course ---------- */
+function lessonBest(i){ return Records.get('les'+i,0); }
+function showLessons(){
+  clearInterval(timer);stopNetLoops();running=false;phase='end';
+  hideOverlays();
+  $('#playview').hidden=true;$('#lessons').hidden=false;
+  const done=LESSONS.filter((_,i)=>lessonBest(i)>0).length;
+  $('#lprog').textContent=I18N.t('drillDone',{d:done,t:LESSONS.length});
+  const list=$('#llist');list.innerHTML='';
+  const free=document.createElement('button');
+  free.className='les free';free.dataset.i='free';
+  free.innerHTML='<span class="lnum">∞</span>';
+  const fn=document.createElement('span');fn.className='lname';fn.textContent=I18N.t('drillFree');
+  const fk=document.createElement('span');fk.className='lkeys';fk.textContent=I18N.t('drillFreeSub');
+  fk.style.letterSpacing='0';fk.style.fontWeight='600';
+  free.append(fn,fk);list.appendChild(free);
+  LESSONS.forEach((l,i)=>{
+    const b=document.createElement('button');
+    b.className='les'+(lessonBest(i)>0?' done':'');b.dataset.i=i;
+    const num=document.createElement('span');num.className='lnum';num.textContent=i+1;
+    const nm=document.createElement('span');nm.className='lname';nm.textContent=lessonName(l,i);
+    const ks=document.createElement('span');ks.className='lkeys';ks.textContent=l.k==='txt'?'¶':l.keys.slice(0,4).join('');
+    const bs=document.createElement('span');bs.className='lbest';bs.textContent=lessonBest(i)?lessonBest(i)+' WPM':'';
+    b.append(num,nm,ks,bs);list.appendChild(b);
+  });
+}
+function startLesson(i){
+  const l=LESSONS[i];if(!l)return;
+  stopNetLoops();
+  R.bots={};R.prog={};R.seats=[];
+  $('#lessons').hidden=true;$('#playview').hidden=false;
+  startRound({queue:lessonQueue(l),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false,drill:true,endless:false,lesson:i});
+}
+function endLesson(){
+  clearInterval(timer);clearInterval(R.loop);running=false;inp.disabled=true;inp.blur();phase='end';
+  const s2=stats(),i=R.lesson;
+  const better=s2.wpm>lessonBest(i);
+  if(better&&s2.acc>=80)Records.d['les'+i]=s2.wpm,Records.save();
+  $('#lesTitle').textContent=(i+1)+'. '+lessonName(LESSONS[i],i);
+  $('#lesWpm').textContent=s2.wpm;
+  $('#lesMsg').textContent=(better&&s2.acc>=80?I18N.t('drillNew')+' ':'')+I18N.t('drillRes',{w:s2.wpm,a:s2.acc});
+  $('#lesNext').textContent=I18N.t(i+1<LESSONS.length?'drillNext':'drillAgain');
+  $('#lesOv').hidden=false;Sfx.win();
+}
 /* the tabs are the app shell — hidden only once this session belongs to a room */
 function paintTabs(){
   $('#tabs').hidden=!!joinedRoom;
   $$('#tabs .tab').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
 }
 function setTab(t){
-  if(t===tab||joinedRoom)return;
+  if(joinedRoom)return;
+  if(t===tab){ if(tab==='drill')showLessons(); return; }
   tab=t;Store.set('tab',tab);
   paintTabs();Sfx.tick();forceKeyboard();
   startCurrent();
@@ -959,7 +1079,7 @@ async function inviteFriends(){
 }
 
 /* ---------- UI wiring ---------- */
-function hideOverlays(){ ['menuOv','endOv','hallOv','recOv','netOv'].forEach(i=>{$('#'+i).hidden=true;}); $('#chatSheet').hidden=true; }
+function hideOverlays(){ ['menuOv','endOv','hallOv','recOv','netOv','lesOv'].forEach(i=>{$('#'+i).hidden=true;}); $('#chatSheet').hidden=true; }
 function markChips(){
   $$('#lvlChips .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
   $$('#hallLvl .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
@@ -988,6 +1108,16 @@ $('#readyBtn').onclick=()=>{ myReady=!myReady;Sfx.tick();shareInfo(); };
 $('#startBtn').onclick=()=>{ if(isHost()&&Roster.allReady()){ forceKeyboard();hostStart(false); } };
 $('#botsBtn').onclick=()=>{ if(isHost()){ forceKeyboard();hostStart(true); } };
 $('#tabs').onclick=e=>{ const b=e.target.closest('.tab');if(b)setTab(b.dataset.tab); };
+$('#llist').onclick=e=>{
+  const b=e.target.closest('.les');if(!b)return;
+  forceKeyboard();
+  if(b.dataset.i==='free')startDrill(); else startLesson(+b.dataset.i);
+};
+$('#lesBack').onclick=()=>{ $('#lesOv').hidden=true;showLessons(); };
+$('#lesNext').onclick=()=>{
+  $('#lesOv').hidden=true;forceKeyboard();
+  startLesson(R.lesson+1<LESSONS.length?R.lesson+1:R.lesson);
+};
 $('#chatBtn').onclick=openChat;
 $('#chatSheet').onclick=e=>{ if(e.target.id==='chatSheet'){$('#chatSheet').hidden=true;focusInput();} };
 $('#chatSend').onclick=()=>{ if(Chat.send($('#chatInp').value)){ $('#chatInp').value='';$('#chatSheet').hidden=true;focusInput(); } };
@@ -996,6 +1126,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Escape')$('#chatSheet').hid
 window.addEventListener('langchange',()=>{
   markChips();
   if(phase==='hall')paintHall();
+  if(!$('#lessons').hidden)showLessons();
   if(queue.length&&idx<queue.length&&running)load();
   if(!$('#recOv').hidden)$('#recGrid').innerHTML=recRows(null);
 });
@@ -1029,6 +1160,7 @@ bootApp(async (cfg)=>{
   const l=await Store.get('lvl');if(l&&LIMITS[l])lvl=+l;
   const t=await Store.get('tl');tl=(t==='en'||t==='mn')?t:I18N.lang;
   const tb=await Store.get('tab');if(tb==='drill'||tb==='race')tab=tb;
+  LESSONS=buildLessons();
   paintTabs();
   markChips();
   Roster.reset(cfg.playerIds&&cfg.playerIds.length?cfg.playerIds:[Roster.myId],Roster.myId);

@@ -271,7 +271,7 @@ async function newPage(browser, opts) {
     await ctx.close();
   }
 
-  /* ---------- 5. tabs: Race vs Practice ---------- */
+  /* ---------- 5. tabs: Race, and the practice course ---------- */
   {
     const before = failures;
     const { ctx, page, errors } = await newPage(browser, { me: 'u1', name: 'Tabs', mode: 'single', roomId: null, playerIds: ['u1'] });
@@ -280,33 +280,61 @@ async function newPage(browser, opts) {
     await page.waitForTimeout(400);
     if (await page.$eval('#tabs', e => e.hidden)) fail('tabs', 'tab bar hidden on a solo launch');
     if (!(await page.$eval('#tabs .tab', e => e.classList.contains('on')))) fail('tabs', 'race tab not active by default');
+
+    // practice tab opens the lesson list, not a round
     await page.click('[data-tab="drill"]');
+    await page.waitForTimeout(300);
+    if (await page.$eval('#lessons', e => e.hidden)) fail('tabs', 'practice tab did not open the lesson list');
+    const rows = await page.$$eval('#llist .les', e => e.length);
+    if (rows < 40) fail('tabs', 'only ' + rows + ' lesson rows');
+    await page.screenshot({ path: 'shots/type-rush-12-lessons.png' });
+
+    // lesson 1 drills exactly the two index-finger keys
+    await page.click('#llist .les:not(.free)');
+    await page.waitForTimeout(300);
+    const les = await page.evaluate(() => ({ i: R.lesson, drill: R.drill, endless: R.endless, lines: queue.length, text: queue[0][0] }));
+    if (les.i !== 0 || !les.drill || les.endless) fail('tabs', `lesson round not started (i=${les.i})`);
+    if (!/^[өр ]+$/.test(les.text)) fail('tabs', 'lesson 1 drills the wrong keys: ' + les.text);
+    for (let i = 0; i < les.lines; i++) { const w = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', w, { delay: 1 }); }
+    await page.waitForTimeout(400);
+    if (await page.$eval('#lesOv', e => e.hidden)) fail('tabs', 'lesson result did not show');
+    const lesBest = await page.evaluate(() => Records.get('les0', 0));
+    if (!lesBest) fail('tabs', 'lesson best WPM was not stored');
+    if (await page.evaluate(() => window.__calls.some(c => c[0] === 'submit'))) fail('tabs', 'a lesson submitted a score');
+    await page.screenshot({ path: 'shots/type-rush-13-lesson.png' });
+    // the finished lesson is marked done in the list
+    await page.click('#lesBack');
+    await page.waitForTimeout(250);
+    if (!(await page.$eval('#llist .les:not(.free)', e => e.classList.contains('done')))) fail('tabs', 'finished lesson not marked done');
+
+    // free typing: untimed and endless
+    await page.click('#llist .les.free');
     await page.waitForTimeout(400);
     const drill = await page.evaluate(() => ({
-      on: R.drill, bar: document.getElementById('tbarw').hidden, dots: document.getElementById('dots').hidden,
-      track: document.getElementById('track').hidden, t: document.getElementById('time').textContent,
+      on: R.drill, endless: R.endless, bar: document.getElementById('tbarw').hidden,
+      dots: document.getElementById('dots').hidden, track: document.getElementById('track').hidden,
     }));
-    if (!drill.on) fail('tabs', 'practice tab did not start a practice round');
-    if (!drill.bar || !drill.dots || !drill.track) fail('tabs', 'practice still shows the race chrome');
-    // the clock counts up and the round never ends, however many sentences you type
+    if (!drill.on || !drill.endless) fail('tabs', 'free typing did not start');
+    if (!drill.bar || !drill.dots || !drill.track) fail('tabs', 'free typing still shows the race chrome');
     const rounds = (await page.evaluate(() => R.sents)) + 2;
     for (let i = 0; i < rounds; i++) { const w = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', w, { delay: 2 }); }
     await page.waitForTimeout(400);
     const after = await page.evaluate(() => ({
       typed: finished, ended: document.getElementById('endOv').hidden, t: document.getElementById('time').textContent,
-      calls: window.__calls.filter(c => c[0] === 'submit').length, races: Records.get('races'),
+      subs: window.__calls.filter(c => c[0] === 'submit').length,
     }));
-    if (!after.ended) fail('tabs', 'practice showed a game-over screen');
-    if (after.typed < rounds) fail('tabs', 'practice stopped after ' + after.typed + ' sentences');
-    if (after.calls) fail('tabs', 'practice submitted a score to the leaderboard');
+    if (!after.ended) fail('tabs', 'free typing showed a game-over screen');
+    if (after.typed < rounds) fail('tabs', 'free typing stopped after ' + after.typed + ' sentences');
+    if (after.subs) fail('tabs', 'free typing submitted a score');
     if (after.t === '0:00') fail('tabs', 'practice clock did not count up');
-    await page.screenshot({ path: 'shots/type-rush-12-practice.png' });
+
     // and back to the scored mode
     await page.click('[data-tab="race"]');
     await page.waitForTimeout(300);
     if (await page.evaluate(() => R.drill)) fail('tabs', 'race tab did not leave practice');
+    if (await page.$eval('#lessons', e => !e.hidden)) fail('tabs', 'lesson list still showing in race mode');
     if (errors.length) fail('tabs', 'console: ' + errors.join(' | ').slice(0, 300));
-    if (failures === before) ok('tabs', `practice typed=${after.typed} clock=${after.t} submits=${after.calls}`);
+    if (failures === before) ok('practice course', `lessons=${rows} lesson1Best=${lesBest}wpm freeTyped=${after.typed} clock=${after.t}`);
     await ctx.close();
   }
 
