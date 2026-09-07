@@ -189,5 +189,23 @@ body{
 .cdhint{font-size:12px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
 @keyframes count{from{opacity:0;transform:scale(1.5)}to{opacity:1;transform:scale(1)}}
 
+/* ---- bottom tabs (app shell: stays above the overlays) ---- */
+.tabs{
+  position:relative;z-index:80;display:flex;gap:6px;flex:none;background:var(--bg);
+  border-top:1px solid var(--line);
+  padding:6px max(10px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-right));
+}
+.tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  background:transparent;border:0;color:var(--muted);border-radius:14px;padding:7px 4px;
+  font-size:11px;font-weight:700;letter-spacing:.2px;cursor:pointer;transition:background .14s,color .14s;
+}
+.tab.on{background:var(--card);color:var(--blue)}
+.tab:active{transform:scale(.97)}
+.tab .ti{font-size:19px;line-height:1}
+.short .tabs{padding-top:3px;padding-bottom:calc(3px + env(safe-area-inset-bottom))}
+.short .tab{flex-direction:row;gap:6px;padding:5px 4px;font-size:11px}
+.short .tab .ti{font-size:14px}
+
 .play{touch-action:none}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}

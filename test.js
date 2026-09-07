@@ -62,6 +62,13 @@ async function newPage(browser, opts) {
     await page.waitForTimeout(400);
     const overlays = await page.$$eval('.overlay:not([hidden])', e => e.length);
     if (overlays !== 0) fail('solo', 'overlay visible at launch: ' + overlays);
+    // a fresh round starts on the caret, never on an error mark
+    const first = await page.evaluate(() => ({
+      cls: document.querySelector('#text span').className,
+      acc: document.getElementById('acc').textContent,
+    }));
+    if (!/\bcur\b/.test(first.cls) || /\bbad\b/.test(first.cls)) fail('solo', 'first character is not the caret: ' + first.cls);
+    if (first.acc !== '100%') fail('solo', 'accuracy at launch is ' + first.acc);
     await page.screenshot({ path: 'shots/type-rush-1-solo.png' });
     // keyboard open: the whole game must still fit above it, with nothing panned off screen
     await page.setViewportSize({ width: 390, height: 420 });
@@ -240,6 +247,19 @@ async function newPage(browser, opts) {
     const acc = await page.evaluate(() => +document.getElementById('acc').textContent.replace('%', ''));
     if (acc !== 100) fail('hard', 'typing the exact text scored ' + acc + '% accuracy');
     await page.screenshot({ path: 'shots/type-rush-9-hard.png' });
+    // a phone keyboard opens unshifted: typing the sentence in lower case must still be clean
+    await page.evaluate(() => { tl = 'en'; lvl = 1; startSolo(); });
+    await page.waitForTimeout(200);
+    const nLower = await page.evaluate(() => R.sents);
+    for (let i = 0; i < nLower; i++) {
+      const want = await page.evaluate(() => target);
+      await page.fill('#inp', '');
+      await page.type('#inp', want.toLowerCase(), { delay: 3 });
+    }
+    await page.waitForTimeout(300);
+    const lowerAcc = await page.evaluate(() => +document.getElementById('acc').textContent.replace('%', ''));
+    if (lowerAcc !== 100) fail('hard', 'lower-case typing scored ' + lowerAcc + '% (missed Shift should not count)');
+    if (await page.$eval('#endOv', e => e.hidden)) fail('hard', 'lower-case round did not finish');
     // the settings panel explains what the levels mean
     await page.evaluate(() => { markChips(); openMenu(); });
     await page.waitForTimeout(250);
@@ -248,6 +268,45 @@ async function newPage(browser, opts) {
     await page.screenshot({ path: 'shots/type-rush-10-levels.png' });
     if (errors.length) fail('hard', 'console: ' + errors.join(' | ').slice(0, 300));
     if (failures === before) ok('hard level', `sentences=${n} maxLen=${Math.max(...lens)} acc=${acc}%`);
+    await ctx.close();
+  }
+
+  /* ---------- 5. tabs: Race vs Practice ---------- */
+  {
+    const before = failures;
+    const { ctx, page, errors } = await newPage(browser, { me: 'u1', name: 'Tabs', mode: 'single', roomId: null, playerIds: ['u1'] });
+    await page.exposeFunction('__send', () => {});
+    await page.goto(URL);
+    await page.waitForTimeout(400);
+    if (await page.$eval('#tabs', e => e.hidden)) fail('tabs', 'tab bar hidden on a solo launch');
+    if (!(await page.$eval('#tabs .tab', e => e.classList.contains('on')))) fail('tabs', 'race tab not active by default');
+    await page.click('[data-tab="drill"]');
+    await page.waitForTimeout(400);
+    const drill = await page.evaluate(() => ({
+      on: R.drill, bar: document.getElementById('tbarw').hidden, dots: document.getElementById('dots').hidden,
+      track: document.getElementById('track').hidden, t: document.getElementById('time').textContent,
+    }));
+    if (!drill.on) fail('tabs', 'practice tab did not start a practice round');
+    if (!drill.bar || !drill.dots || !drill.track) fail('tabs', 'practice still shows the race chrome');
+    // the clock counts up and the round never ends, however many sentences you type
+    const rounds = (await page.evaluate(() => R.sents)) + 2;
+    for (let i = 0; i < rounds; i++) { const w = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', w, { delay: 2 }); }
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => ({
+      typed: finished, ended: document.getElementById('endOv').hidden, t: document.getElementById('time').textContent,
+      calls: window.__calls.filter(c => c[0] === 'submit').length, races: Records.get('races'),
+    }));
+    if (!after.ended) fail('tabs', 'practice showed a game-over screen');
+    if (after.typed < rounds) fail('tabs', 'practice stopped after ' + after.typed + ' sentences');
+    if (after.calls) fail('tabs', 'practice submitted a score to the leaderboard');
+    if (after.t === '0:00') fail('tabs', 'practice clock did not count up');
+    await page.screenshot({ path: 'shots/type-rush-12-practice.png' });
+    // and back to the scored mode
+    await page.click('[data-tab="race"]');
+    await page.waitForTimeout(300);
+    if (await page.evaluate(() => R.drill)) fail('tabs', 'race tab did not leave practice');
+    if (errors.length) fail('tabs', 'console: ' + errors.join(' | ').slice(0, 300));
+    if (failures === before) ok('tabs', `practice typed=${after.typed} clock=${after.t} submits=${after.calls}`);
     await ctx.close();
   }
 
