@@ -75,6 +75,14 @@ async function newPage(browser, opts) {
       return { off, scrolled: window.scrollY };
     });
     if (fits.off.length || fits.scrolled) fail('solo', `keyboard layout: offscreen=${fits.off.join(',')} scrollY=${fits.scrolled}`);
+    // and the whole sentence stays readable inside the card, never cut off
+    const clip = await page.evaluate(() => {
+      const box = document.getElementById('typebox').getBoundingClientRect();
+      const spans = [...document.querySelectorAll('#text span')];
+      const last = spans[spans.length - 1].getBoundingClientRect();
+      return { over: last.bottom - box.bottom, chars: spans.length };
+    });
+    if (clip.over > -2) fail('solo', `sentence clipped by ${clip.over.toFixed(0)}px with the keyboard open`);
     await page.screenshot({ path: 'shots/type-rush-11-keyboard.png' });
     await page.setViewportSize({ width: 390, height: 780 });
     await page.waitForTimeout(250);

@@ -36,11 +36,9 @@
 .racer .bub{left:auto;right:0;bottom:30px}
 /* ---- typing surface: the text IS the input ---- */
 .typebox{
-  position:relative;width:100%;flex:1 1 auto;max-height:min(38vh,280px);cursor:text;
-  background:var(--card);border:1.5px solid var(--line);border-radius:var(--r);
-  padding:18px 16px;min-height:92px;transition:border-color .15s;
+  position:relative;width:100%;flex:1 1 auto;max-height:min(42vh,320px);min-height:0;cursor:text;
+  padding:10px 0;overflow:hidden;
 }
-.typebox.on{border-color:var(--blue)}
 .text{
   -webkit-user-select:none;user-select:none;white-space:pre-wrap;
   font-size:clamp(19px,5.2vw,25px);line-height:1.6;letter-spacing:.1px;word-break:break-word;
@@ -48,25 +46,25 @@
 .text span{border-radius:3px}
 .text .todo{color:var(--dim)}
 .text .ok{color:var(--fg)}
-.text .w{background:rgba(255,255,255,.07)}
-:root[data-theme="light"] .text .w{background:rgba(0,0,0,.05)}
+.text span{border-radius:0}
+.text .w{box-shadow:inset 0 -2px 0 var(--line2)}
 .text .bad{color:var(--bad);background:rgba(239,68,68,.18);text-decoration:underline;text-underline-offset:3px}
 .text .cur{position:relative;color:var(--dim)}
 .text .cur::before{content:"";position:absolute;left:-2px;top:.12em;bottom:.12em;width:2px;background:var(--blue);border-radius:2px;animation:caret 1.05s steps(1) infinite}
 @keyframes caret{0%,50%{opacity:1}50.01%,100%{opacity:0}}
 /* the real input sits invisibly on top so the phone keyboard opens on tap */
 .inp{
-  position:absolute;inset:0;width:100%;height:100%;padding:18px 16px;margin:0;
+  position:absolute;inset:0;width:100%;height:100%;padding:10px 0;margin:0;
   background:transparent;border:0;outline:none;resize:none;overflow:hidden;
   color:transparent;caret-color:transparent;font-size:16px;font-family:inherit;line-height:1.6;
 }
 .inp::selection{background:transparent}
 .tap{
-  position:absolute;inset:auto 0 10px 0;text-align:center;pointer-events:none;
+  position:absolute;inset:auto 0 0 0;text-align:center;pointer-events:none;
   font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);
 }
 .typebox.on .tap{display:none}
-.typebox.err{border-color:var(--bad);animation:shake .2s}
+.typebox.err .text{animation:shake .2s}
 /* ---- clock + sentence progress ---- */
 .timerbar{width:100%;height:6px;background:var(--card);border-radius:999px;overflow:hidden;margin:14px 0 10px;flex:none}
 .timerbar i{display:block;height:100%;background:var(--fg);border-radius:999px;transition:width .22s linear,background .3s}
@@ -80,6 +78,21 @@
 .prog{align-self:flex-end;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}
 .author{color:var(--muted);font-size:12px;margin-top:9px;align-self:flex-end;font-style:italic}
 .lvlhelp{color:var(--muted);font-size:12px;line-height:1.45;margin:-6px 0 14px;text-align:left}
+/* keyboard open: shrink the chrome so the sentence keeps the room it needs */
+.short .topbar{padding-top:calc(5px + env(safe-area-inset-top));padding-bottom:5px}
+.short .topbar h1{font-size:14px}
+.short .tb{height:29px;min-width:29px;padding:0 7px;font-size:12px}
+.short .wrap{padding-top:9px}
+.short .track{margin-bottom:8px;padding:3px 9px}
+.short .lane{height:29px}
+.short .car{font-size:18px}
+.short .stat{display:flex;align-items:baseline;justify-content:center;gap:6px;padding:5px 8px}
+.short .stat .v{font-size:15px;margin:0}
+.short .timerbar{margin:9px 0 7px}
+.short .progrow{gap:5px;margin-bottom:7px}
+.short .prog{font-size:10px}
+.short .typebox{padding:6px 0;max-height:none}
+.short .author{display:none}
 .typing{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
 </style>
 </head>
@@ -403,11 +416,20 @@ function paintDots(){
   if(el.childElementCount!==R.sents){ el.innerHTML='';for(let i=0;i<R.sents;i++)el.appendChild(document.createElement('i')); }
   for(let i=0;i<R.sents;i++)el.children[i].className=i<idx?'on':(i===idx?'cur':'');
 }
+/* the sentence must always be fully readable, whatever room the keyboard left us */
+function fitText(){
+  const el=$('#text'),cs=getComputedStyle(box);
+  const avail=box.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  if(avail<=0)return;
+  el.style.fontSize='';
+  let size=parseFloat(getComputedStyle(el).fontSize),guard=0;
+  while(el.offsetHeight>avail&&size>12&&guard++<20){ size-=1;el.style.fontSize=size+'px'; }
+}
 function load(){
   const q=queue[idx];target=q[0];$('#author').textContent=q[1]&&q[1]!=='—'?'— '+q[1]:'';
   inp.value='';inp._last='';render();
   $('#prog').textContent=I18N.t('sent',{i:idx+1,t:R.sents});
-  paintDots();
+  paintDots();fitText();
 }
 function stats(){
   const el=(performance.now()-startT)/60000;
@@ -415,13 +437,18 @@ function stats(){
   const acc=typedChars?Math.max(0,Math.round((typedChars-errors)/typedChars*100)):100;
   $('#wpm').textContent=wpm;$('#acc').textContent=acc+'%';return{wpm,acc};
 }
+let errT=null;
+function flashErr(){
+  box.classList.remove('err');void box.offsetWidth;box.classList.add('err');
+  clearTimeout(errT);errT=setTimeout(()=>box.classList.remove('err'),260);
+}
 function myFrac(){ return Math.min(1,(idx+(target.length?Math.min(1,inp.value.length/target.length):0))/R.sents); }
 inp.addEventListener('input',()=>{
   if(!running){ inp.value='';return; }
   const v=inp.value,i=v.length-1;
   if(i>=0&&(inp._last||'').length<v.length){
     typedChars++;
-    if(v[i]!==target[i]){ errors++;box.classList.remove('err');void box.offsetWidth;box.classList.add('err');Sfx.bad();haptic(30); }
+    if(v[i]!==target[i]){ errors++;flashErr();Sfx.bad();haptic(30); }
     else correctChars++;
   }
   inp._last=v;render();stats();
@@ -940,7 +967,9 @@ function fitViewport(){
   const vv=window.visualViewport;
   const h=vv?Math.round(vv.height):window.innerHeight;
   if(h>120)document.body.style.height=h+'px';
+  document.documentElement.classList.toggle('short',h<560);
   try{ window.scrollTo(0,0); }catch(e){}
+  if(queue.length)requestAnimationFrame(fitText);
 }
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize',fitViewport);
