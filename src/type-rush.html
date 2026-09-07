@@ -130,10 +130,6 @@
      <button class="backb" id="lesUp" hidden>‹</button>
      <img class="lhand" id="lHand" alt="" draggable="false" hidden>
      <div><div class="ltitle" id="lTitle"></div><div class="lsub" id="lprog"></div></div>
-     <div class="chips lang" id="lesLang">
-       <button class="chip on" data-tl="mn">МН</button>
-       <button class="chip" data-tl="en">EN</button>
-     </div>
    </div>
    <button class="buybar" id="buyBar" hidden><span>🔓</span><span class="bbtxt"></span><span class="bbprice"></span></button>
    <div class="llist" id="llist"></div>
@@ -158,11 +154,6 @@
       <button class="chip" data-lvl="3" data-i18n="l3"></button>
     </div>
     <p class="lvlhelp" data-i18n="lvlHelp"></p>
-    <div class="muted" data-i18n="textLang"></div>
-    <div class="chips" id="tlChips">
-      <button class="chip on" data-tl="mn">Монгол</button>
-      <button class="chip" data-tl="en">English</button>
-    </div>
     <button class="btn" id="menuStart" data-i18n="start"></button>
     <div class="row" style="margin-top:8px"><button class="btn sec" id="menuInvite" data-i18n="invite"></button></div>
   </div>
@@ -245,7 +236,7 @@ I18N.register({
       rules:'Дэлгэц дээрх өгүүлбэрийг аль болох хурдан, зөв бич. Түвшин бүр өөр урт, өөр тэмдэгтийн нягтралтай.',
       tapHint:'Дарж бичиж эхлээрэй',
       lvl:'Түвшин',l1:'Хялбар (120с)',l2:'Дунд (100с)',l3:'Хүнд (90с)',
-      lvlHelp:'Хялбар — 3 урт өгүүлбэр, цэг таслал бараг байхгүй. Дунд — 4 өгүүлбэр, ердийн цэг таслалтай. Хүнд — 5 богино өгүүлбэр, тоо, хаалт, тусгай тэмдэгт дүүрэн.',textLang:'Текстийн хэл',
+      lvlHelp:'Хялбар — 3 урт өгүүлбэр, цэг таслал бараг байхгүй. Дунд — 4 өгүүлбэр, ердийн цэг таслалтай. Хүнд — 5 богино өгүүлбэр, тоо, хаалт, тусгай тэмдэгт дүүрэн.',
       done:'Дууслаа! 🏁',timeUp:'Цаг дууслаа ⏱',
       result:'{w} WPM · {a}% нарийвчлал · {n}/{t} өгүүлбэр',newBest:'🎉 Шинэ дээд амжилт!',
       sent:'Өгүүлбэр {i}/{t}',score:'оноо',ghost:'Рекорд',
@@ -274,7 +265,7 @@ I18N.register({
       rules:'Type each sentence as fast and accurately as you can. Every level has its own length and punctuation density.',
       tapHint:'Tap here to start typing',
       lvl:'Level',l1:'Easy (120s)',l2:'Medium (100s)',l3:'Hard (90s)',
-      lvlHelp:'Easy - 3 long sentences, almost no punctuation. Medium - 4 sentences with ordinary punctuation. Hard - 5 short sentences full of digits, brackets and symbols.',textLang:'Text language',
+      lvlHelp:'Easy - 3 long sentences, almost no punctuation. Medium - 4 sentences with ordinary punctuation. Hard - 5 short sentences full of digits, brackets and symbols.',
       done:'Finished! 🏁',timeUp:"Time's up ⏱",
       result:'{w} WPM · {a}% accuracy · {n}/{t} sentences',newBest:'🎉 New best score!',
       sent:'Sentence {i}/{t}',score:'points',ghost:'Record',
@@ -772,7 +763,6 @@ function lessonScreen(){
   clearInterval(timer);stopNetLoops();running=false;phase='end';
   hideOverlays();
   $('#playview').hidden=true;$('#lessons').hidden=false;
-  $$('#lesLang .chip').forEach(b=>b.classList.toggle('on',b.dataset.tl===tl));
   const bar=$('#buyBar');
   bar.hidden=pro;
   bar.querySelector('.bbtxt').textContent=I18N.t('payBar');
@@ -1322,11 +1312,10 @@ function hideOverlays(){ ['menuOv','endOv','hallOv','recOv','netOv','lesOv','pay
 function markChips(){
   $$('#lvlChips .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
   $$('#hallLvl .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
-  $$('#tlChips .chip').forEach(c=>c.classList.toggle('on',c.dataset.tl===tl));
-  $$('#lesLang .chip').forEach(c=>c.classList.toggle('on',c.dataset.tl===tl));
+
 }
 function setTextLang(v){
-  if(v!=='en'&&v!=='mn')return;
+  if(v!=='en'&&v!=='mn'||v===tl)return;
   tl=v;Store.set('tl',tl);markChips();
   LESSONS=buildLessons(tl);                              // the drills follow the keyboard you type on
   if(!$('#lessons').hidden)lessonScreen();
@@ -1340,8 +1329,6 @@ function openRecords(){
 }
 $('#lvlChips').onclick=e=>{ const c=e.target.closest('.chip');if(c)pickLvl(c.dataset.lvl); };
 $('#hallLvl').onclick=e=>{ const c=e.target.closest('.chip');if(c&&isHost())pickLvl(c.dataset.lvl); };
-$('#tlChips').onclick=e=>{ const c=e.target.closest('.chip');if(c)setTextLang(c.dataset.tl); };
-$('#lesLang').onclick=e=>{ const c=e.target.closest('.chip');if(c)setTextLang(c.dataset.tl); };
 $('#menuStart').onclick=()=>{ forceKeyboard();startCurrent(); };
 $('#setBtn').onclick=openMenu;
 $('#menuBtn2').onclick=openMenu;
@@ -1383,6 +1370,7 @@ $('#chatSend').onclick=()=>{ if(Chat.send($('#chatInp').value)){ $('#chatInp').v
 $('#chatInp').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#chatSend').click(); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape')$('#chatSheet').hidden=true; });
 window.addEventListener('langchange',()=>{
+  setTextLang(I18N.lang);          // one control: the top bar toggle drives everything
   markChips();
   if(phase==='hall')paintHall();
   if(!$('#lessons').hidden)lessonScreen();
@@ -1418,7 +1406,7 @@ bootApp(async (cfg)=>{
   best=Records.get('best');
   refreshMe().then(()=>{ best=bestScore(); });   // non-blocking: never delay instant play
   const l=await Store.get('lvl');if(l&&LIMITS[l])lvl=+l;
-  const t=await Store.get('tl');tl=(t==='en'||t==='mn')?t:I18N.lang;
+  tl=I18N.lang;
   const tb=await Store.get('tab');if(tb==='drill'||tb==='race')tab=tb;
   LESSONS=buildLessons(tl);
   paintTabs();

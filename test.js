@@ -391,15 +391,15 @@ const receipts = [];
     // switching the course language switches the alphabet being drilled
     await page.click('#lesUp');
     await page.waitForTimeout(150);
-    await page.click('#lesLang .chip[data-tl="en"]');
-    await page.waitForTimeout(250);
+    await page.click('#langBtn');
+    await page.waitForTimeout(300);
     const en = await page.$$eval('#llist .fcard', cs => ({
       first: cs[0].querySelector('.fkeys').textContent,
       name: cs[0].querySelector('.fname').textContent,
       badge: cs[0].querySelector('.fbadge').textContent,
     }));
     if (en.first !== 'f g r t v b 4 5') fail('tabs', 'english course keys are ' + en.first);
-    if (en.name !== 'Зүүн гарын долоовор хуруу') fail('tabs', 'finger name should follow the UI language, got ' + en.name);
+    if (en.name !== 'Left index finger') fail('tabs', 'interface did not switch with the course, got ' + en.name);
     if (en.badge !== '0/5') fail('tabs', 'mongolian progress leaked into the english course');
     await page.click('#llist .fcard');
     await page.waitForTimeout(200);
@@ -408,7 +408,9 @@ const receipts = [];
     const enText = await page.evaluate(() => queue[0][0]);
     if (!/^[fg ]+$/.test(enText)) fail('tabs', 'english lesson 1 drills the wrong keys: ' + enText);
     await page.screenshot({ path: 'shots/type-rush-14-english.png' });
-    await page.evaluate(() => { setTextLang('mn'); showLessons(); });
+    await page.click('[data-tab="drill"]');   // tapping the active tab returns to the grid
+    await page.waitForTimeout(250);
+    await page.click('#langBtn');             // back to Mongolian, one control for both
     await page.waitForTimeout(250);
     if (await page.$eval('#llist .fcard .fbadge', e => e.textContent) !== '1/5') fail('tabs', 'mongolian progress lost after switching back');
 
