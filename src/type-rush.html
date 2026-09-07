@@ -518,8 +518,14 @@ function freshQueue(lang,level,n){
 }
 
 /* ---------- typing round ---------- */
-/* a phone keyboard makes Shift expensive, so case-only differences count as correct */
-function eq(a,b){ return a===b||(a!=null&&b!=null&&String(a).toLowerCase()===String(b).toLowerCase()); }
+/* A lesson exists to teach Shift, so there case must match exactly. Everywhere else a phone
+   keyboard makes Shift expensive enough that a case-only difference is not a typing mistake. */
+function strictCase(){ return R.drill&&R.lesson>=0; }
+function eq(a,b){
+  if(a===b)return true;
+  if(strictCase()||a==null||b==null)return false;
+  return String(a).toLowerCase()===String(b).toLowerCase();
+}
 function esc(ch){ return ch==='&'?'&amp;':(ch==='<'?'&lt;':(ch==='>'?'&gt;':ch)); }
 function render(){
   const val=inp.value,el=$('#text');
@@ -629,6 +635,7 @@ function startRound(cfg){
   idx=0;typedChars=0;correctChars=0;errors=0;score=0;finished=0;timeLeft=R.drill?0:cfg.limit;
   hideOverlays();$('#track').hidden=!R.seats.length;$('#tbarw').className='timerbar';
   $('#tbarw').hidden=R.drill;$('#dots').hidden=R.drill&&R.endless;paintTabs();
+  inp.setAttribute('autocapitalize',R.lesson>=0?'off':'sentences');
   inp.disabled=false;load();stats();$('#time').textContent=fmtTime(timeLeft);$('#tbar').style.width='100%';
   startT=performance.now();running=true;phase='race';
   clearInterval(timer);let last=performance.now();

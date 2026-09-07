@@ -320,6 +320,18 @@ const receipts = [];
     const les = await page.evaluate(() => ({ i: R.lesson, drill: R.drill, endless: R.endless, lines: queue.length, text: queue[0][0] }));
     if (les.i !== 0 || !les.drill || les.endless) fail('tabs', `lesson round not started (i=${les.i})`);
     if (!/^[өр ]+$/.test(les.text)) fail('tabs', 'lesson 1 drills the wrong keys: ' + les.text);
+    // a lesson teaches Shift: the wrong case is a mistake here, unlike in a race
+    const wrongCase = await page.evaluate(() => target.toUpperCase());
+    await page.fill('#inp', '');
+    await page.type('#inp', wrongCase.slice(0, 6), { delay: 2 });
+    const strict = await page.evaluate(() => ({
+      acc: +document.getElementById('acc').textContent.replace('%', ''),
+      bad: document.querySelectorAll('#text .bad').length,
+    }));
+    if (strict.acc === 100 || !strict.bad) fail('tabs', 'lesson accepted the wrong case (acc=' + strict.acc + ')');
+    if (await page.evaluate(() => inp.getAttribute('autocapitalize')) !== 'off') fail('tabs', 'lesson leaves auto-capitalise on');
+    await page.evaluate(() => { startLesson(0); });
+    await page.waitForTimeout(250);
     for (let i = 0; i < les.lines; i++) { const w = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', w, { delay: 1 }); }
     await page.waitForTimeout(400);
     if (await page.$eval('#lesOv', e => e.hidden)) fail('tabs', 'lesson result did not show');
