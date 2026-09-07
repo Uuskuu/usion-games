@@ -7,7 +7,7 @@ const path = require('path');
 const URL = 'file://' + path.join(__dirname, 'dist', 'type-rush', 'index.html');
 
 // Fake host SDK injected before page scripts. __send/__deliver bridge to Node.
-const FAKE_SDK = (me, name, mode, roomId, playerIds) => `
+const FAKE_SDK = (me, name, mode, roomId, playerIds, bareReceipt) => `
 window.__calls=[];window.__errors=[];const mem={};const P=v=>Promise.resolve(v);
 const H={};                                   // event name -> handler
 window.__deliver=(ev,m)=>{ if(H[ev]) H[ev](m); };
@@ -17,7 +17,7 @@ window.Usion={config:{},
  user:{getId(){return '${me}'},getName(){return '${name}'},getAvatar(){return null}},
  storage:{get(k){return P(mem[k]??null)},set(k,v){mem[k]=v;return P({success:true})},remove(k){delete mem[k];return P({success:true})},keys(){return P(Object.keys(mem))},clear(){return P({})}},
  wallet:{getBalance(){return P(5000)},hasCredits(){return P(true)},onBalanceChange(){},
-   requestPayment(a,r,o){window.__calls.push(['pay',a,r,o&&o.idempotencyKey]);return P({success:true,newBalance:5000-a,receiptToken:'rt_test_1',transactionId:'tx1'})}},
+   requestPayment(a,r,o){window.__calls.push(['pay',a,r,o&&o.idempotencyKey]);return P(${bareReceipt?"{receiptToken:\'rt_bare\'}":"{success:true,newBalance:5000-a,receiptToken:\'rt_test_1\',transactionId:\'tx1\'}"})}},
  leaderboard:{submit(s,m){window.__calls.push(['submit',s,m]);return P({success:true,score:s,best:s,previous:null,rank:1,updated:true})},
    top(){return P([{user_id:'x',name:'Bat',score:500,rank:1},{user_id:'${me}',name:'${name}',score:100,rank:2,is_me:true}])},
    friends(){return P([{user_id:'${me}',name:'${name}',score:100,rank:1,is_me:true}])},me(){return P({score:100,rank:2,total:2})}},
@@ -45,11 +45,13 @@ async function newPage(browser, opts) {
   // serve the fake SDK in place of the real one the built page loads from usions.com
   await page.route('https://mobile.mongolai.mn/**', r => {
     receipts.push(r.request().url());
+    // opts.deadSettle simulates the CORS/network failure that used to strand the unlock
+    if (opts.deadSettle) return r.abort('failed');
     return r.fulfill({ contentType: 'application/json', body: '{"outcome":"settled","status":"completed"}' });
   });
   await page.route('https://usions.com/usion-sdk.js', r => r.fulfill({
     contentType: 'application/javascript',
-    body: FAKE_SDK(opts.me, opts.name, opts.mode, opts.roomId, opts.playerIds),
+    body: FAKE_SDK(opts.me, opts.name, opts.mode, opts.roomId, opts.playerIds, !!opts.bareReceipt),
   }));
   return { ctx, page, errors };
 }
@@ -397,6 +399,36 @@ const receipts = [];
     if (await page.$eval('#lessons', e => !e.hidden)) fail('tabs', 'lesson list still showing in race mode');
     if (errors.length) fail('tabs', 'console: ' + errors.join(' | ').slice(0, 300));
     if (failures === before) ok('practice course', `lessons=${rows} lesson1Best=${lesBest}wpm freeTyped=${after.typed} clock=${after.t}`);
+    await ctx.close();
+  }
+
+  /* ---------- 6. the unlock survives a host that answers oddly and a settle that fails ---------- */
+  {
+    const before = failures;
+    const { ctx, page, errors } = await newPage(browser, {
+      me: 'u9', name: 'Payer', mode: 'single', roomId: null, playerIds: ['u9'],
+      bareReceipt: true, deadSettle: true,
+    });
+    await page.exposeFunction('__send', () => {});
+    await page.goto(URL);
+    await page.waitForTimeout(400);
+    await page.click('[data-tab="drill"]');
+    await page.waitForTimeout(300);
+    await page.click('#llist .les:nth-child(3)');
+    await page.waitForTimeout(200);
+    await page.click('#payGo');
+    await page.waitForTimeout(1200);
+    const st = await page.evaluate(() => ({ pro, lesson: R.lesson, sheet: document.getElementById('payOv').hidden }));
+    if (!st.pro) fail('pay-resilience', 'a charged user was left locked out');
+    if (!st.sheet) fail('pay-resilience', 'unlock sheet stayed open after paying');
+    if (st.lesson !== 1) fail('pay-resilience', 'the requested lesson did not start');
+    // the unsettled receipt is kept so the next launch can capture it
+    const kept = await page.evaluate(() => Usion.storage.get('type-rush:receipt'));
+    if (kept !== 'rt_bare') fail('pay-resilience', 'unsettled receipt was not kept for retry, got ' + kept);
+    // the aborted settle logs a network error on purpose here; anything else is a real fault
+    const real = errors.filter(e => !/ERR_FAILED|mongolai/.test(e));
+    if (real.length) fail('pay-resilience', 'console: ' + real.join(' | ').slice(0, 200));
+    if (failures === before) ok('payment resilience', 'unlocked despite a bare reply and a dead settle endpoint');
     await ctx.close();
   }
 

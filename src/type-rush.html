@@ -213,6 +213,7 @@
       <span class="payprice" id="payPrice"></span>
     </div>
     <div class="row"><button class="btn sec" id="payCancel" data-i18n="payCancel"></button><button class="btn buy" id="payGo"></button></div>
+    <button class="linkbtn" id="payRestore" data-i18n="payRestore"></button>
     <p class="paynote" data-i18n="payNote"></p>
   </div>
 </div>
@@ -253,6 +254,7 @@ I18N.register({
       payTitle:'Дасгалыг нээх',paySub:'Нэг удаа төлөөд үүрд ашиглана — Монгол, Англи хоёулангийн бүх хичээл нээгдэнэ.',
       payCount:'{n} хичээл · МН + EN',payGo:'{p}₮-өөр нээх',payCancel:'Болих',payFree:'ҮНЭГҮЙ',
       payBar:'Бүх хичээлийг нээх',payOk:'Нээгдлээ! 🎉',payFail:'Төлбөр амжилтгүй боллоо',
+      payRestore:'Аль хэдийн төлсөн үү? Сэргээх',payChecking:'Шалгаж байна…',payNoBuy:'Төлбөр олдсонгүй',
       payReason:'Хурдан бичээч — гарын дасгал',payNote:'Төлбөр Usion хэтэвчээр дамжина. Эхний дасгал үргэлж үнэгүй.',
       recTitle:'Миний амжилтууд 🏆',recBest:'Дээд оноо',recWpm:'Дээд WPM',recAcc:'Дээд нарийвчлал',
       recRaces:'Уралдаан',recWins:'Ялалт',recSents:'Бичсэн өгүүлбэр',
@@ -279,6 +281,7 @@ I18N.register({
       payTitle:'Unlock the course',paySub:'Pay once, keep it forever - every lesson in both the Mongolian and English courses.',
       payCount:'{n} lessons · MN + EN',payGo:'Unlock for {p}₮',payCancel:'Cancel',payFree:'FREE',
       payBar:'Unlock every lesson',payOk:'Unlocked! 🎉',payFail:'The payment did not go through',
+      payRestore:'Already paid? Restore',payChecking:'Checking...',payNoBuy:'No purchase found',
       payReason:'Type Rush - touch-typing course',payNote:'Paid through your Usion wallet. The first lesson is always free.',
       recTitle:'My records 🏆',recBest:'Best score',recWpm:'Best WPM',recAcc:'Best accuracy',
       recRaces:'Races',recWins:'Wins',recSents:'Sentences typed',
@@ -992,19 +995,32 @@ function endRace(done){
 const PRICE=1000,FREE_LESSONS=1;
 let pro=false,wantLesson=null;
 function lessonLocked(i){ return !pro&&i>=FREE_LESSONS; }
+function payKey(){ return 'typerush-course-'+(Roster.myId||'me'); }
+/* Never let this block the unlock: it is a background capture with its own timeout,
+   and an unsettled token is retried from storage on the next launch. */
 async function settleReceipt(token){
   if(!token)return false;
+  let timer=null;
   try{
+    const ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+    if(ctl)timer=setTimeout(()=>{try{ctl.abort();}catch(e){}},8000);
     const r=await fetch('https://mobile.mongolai.mn/wallet/receipt/settle',{
-      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({receipt_token:token})
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({receipt_token:token}),signal:ctl?ctl.signal:undefined
     });
     return r.ok;
-  }catch(e){ return false; }        // retried on the next launch from storage
+  }catch(e){ return false; }
+  finally{ clearTimeout(timer); }
+}
+function captureReceipt(token){
+  if(!token)return;
+  Store.set('receipt',token);
+  settleReceipt(token).then(done=>{ if(done)Store.remove('receipt'); });
 }
 async function loadPro(){
-  pro=!!(await Store.get('pro'));
   const pending=await Store.get('receipt');
-  if(pending&&await settleReceipt(pending))Store.remove('receipt');
+  pro=!!(await Store.get('pro'))||!!pending;   // charged but the flag never stuck -> still unlocked
+  if(pending){ if(pro)Store.set('pro',1); captureReceipt(pending); }
 }
 function openPay(i){
   wantLesson=(i===undefined?null:i);
@@ -1014,24 +1030,38 @@ function openPay(i){
   $('#payGo').disabled=false;
   $('#payOv').hidden=false;
 }
-async function buyPro(){
-  const btn=$('#payGo');
-  btn.disabled=true;
-  let r=null;
-  try{
-    r=await Usion.wallet.requestPayment(PRICE,I18N.t('payReason'),{idempotencyKey:'typerush-course-'+Roster.myId});
-  }catch(e){ r=null; }
-  btn.disabled=false;
-  if(!r||!r.success)return toast(I18N.t('payFail'));
-  if(r.receiptToken){                                   // escrow -> settle now, it is an instant unlock
-    Store.set('receipt',r.receiptToken);
-    if(await settleReceipt(r.receiptToken))Store.remove('receipt');
-  }
+/* The user has been charged — hand the goods over first, capture the money after. */
+function grantPro(token){
   pro=true;Store.set('pro',1);
+  captureReceipt(token);
   $('#payOv').hidden=true;Sfx.win();toast(I18N.t('payOk'));
   const go=wantLesson;wantLesson=null;
   showLessons();
   if(go!==null){ forceKeyboard();startLesson(go); }
+}
+/* A host may resolve with {success:true} or just with the receipt — both mean paid. */
+function paid(r){ return !!r&&r.success!==false&&(r.success===true||!!r.receiptToken||!!r.transactionId); }
+async function requestUnlock(){
+  try{ return await Usion.wallet.requestPayment(PRICE,I18N.t('payReason'),{idempotencyKey:payKey()}); }
+  catch(e){ return null; }
+}
+async function buyPro(){
+  const btn=$('#payGo');
+  btn.disabled=true;
+  const r=await requestUnlock();
+  btn.disabled=false;
+  if(!paid(r))return toast(I18N.t('payFail')+(r&&r.reason?': '+r.reason:''));
+  grantPro(r&&r.receiptToken);
+}
+/* Already paid but still locked (a lost reply, a reinstall): the idempotency key makes the
+   platform return the SAME receipt without charging again. */
+async function restorePro(){
+  const b=$('#payRestore');
+  b.disabled=true;b.textContent=I18N.t('payChecking');
+  const r=await requestUnlock();
+  b.disabled=false;b.textContent=I18N.t('payRestore');
+  if(!paid(r))return toast(I18N.t('payNoBuy'));
+  grantPro(r&&r.receiptToken);
 }
 
 let lbMe={score:null,rank:null,total:null};
@@ -1229,6 +1259,7 @@ $('#llist').onclick=e=>{
 $('#buyBar').onclick=()=>openPay();
 $('#payCancel').onclick=()=>{ $('#payOv').hidden=true;wantLesson=null; };
 $('#payGo').onclick=buyPro;
+$('#payRestore').onclick=restorePro;
 $('#lesBack').onclick=()=>{ $('#lesOv').hidden=true;showLessons(); };
 $('#lesNext').onclick=()=>{
   const next=R.lesson+1<LESSONS.length?R.lesson+1:R.lesson;

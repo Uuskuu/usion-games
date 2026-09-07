@@ -217,6 +217,8 @@ body{
 .paytxt b{display:block;font-size:14px;font-weight:800}
 .paytxt span{font-size:12px;color:var(--muted)}
 .payprice{font-size:15px;font-weight:800;color:var(--warn);white-space:nowrap}
+.linkbtn{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;font-weight:700;text-decoration:underline;cursor:pointer;margin-top:12px;padding:4px}
+.linkbtn:disabled{opacity:.5}
 .paynote{font-size:11px!important;color:var(--muted);margin:12px 0 0!important;line-height:1.4}
 .btn.buy{background:var(--warn);border-color:var(--warn);color:#1a1200}
 .buybar{
