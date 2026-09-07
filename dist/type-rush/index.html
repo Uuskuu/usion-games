@@ -188,11 +188,13 @@ body{
 .cdown{
   position:fixed;inset:0;z-index:65;display:flex;align-items:center;justify-content:center;
   background:rgba(6,6,6,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-  font-size:96px;font-weight:900;letter-spacing:-4px;color:var(--fg);pointer-events:none;
+  font-size:96px;font-weight:900;letter-spacing:-4px;color:var(--fg);
 }
 :root[data-theme="light"] .cdown{background:rgba(255,255,255,.8)}
 .cdown[hidden]{display:none}
+.cdown{pointer-events:auto;flex-direction:column;gap:10px}
 .cdown>span{animation:count .5s cubic-bezier(.2,.8,.3,1)}
+.cdhint{font-size:12px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:var(--muted)}
 @keyframes count{from{opacity:0;transform:scale(1.5)}to{opacity:1;transform:scale(1)}}
 
 .play{touch-action:none}
@@ -270,6 +272,7 @@ body{
 .dots i.cur{background:var(--blue)}
 .prog{align-self:flex-end;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}
 .author{color:var(--muted);font-size:12px;margin-top:9px;align-self:flex-end;font-style:italic}
+.lvlhelp{color:var(--muted);font-size:12px;line-height:1.45;margin:-6px 0 14px;text-align:left}
 .typing{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
 </style>
 </head>
@@ -313,6 +316,7 @@ body{
       <button class="chip" data-lvl="2" data-i18n="l2"></button>
       <button class="chip" data-lvl="3" data-i18n="l3"></button>
     </div>
+    <p class="lvlhelp" data-i18n="lvlHelp"></p>
     <div class="muted" data-i18n="textLang"></div>
     <div class="chips" id="tlChips">
       <button class="chip on" data-tl="mn">Монгол</button>
@@ -613,9 +617,10 @@ document.addEventListener('touchmove', e => { if (e.target.closest && e.target.c
 <script>
 I18N.register({
   mn:{title:'Хурдан бичээч',acc:'Нарийвчлал',time:'Цаг',start:'Эхлэх',again:'Дахин',settings:'Тохиргоо',close:'Хаах',
-      rules:'Дэлгэц дээрх өгүүлбэрийг аль болох хурдан, зөв бич. Үг бүрийн дараа зай (space) дар. 5 өгүүлбэр, цаг хязгаартай.',
+      rules:'Дэлгэц дээрх өгүүлбэрийг аль болох хурдан, зөв бич. Түвшин бүр өөр урт, өөр тэмдэгтийн нягтралтай.',
       tapHint:'Дарж бичиж эхлээрэй',
-      lvl:'Түвшин',l1:'Хялбар (90с)',l2:'Дунд (75с)',l3:'Хүнд (60с)',textLang:'Текстийн хэл',
+      lvl:'Түвшин',l1:'Хялбар (120с)',l2:'Дунд (100с)',l3:'Хүнд (90с)',
+      lvlHelp:'Хялбар — 3 урт өгүүлбэр, цэг таслал бараг байхгүй. Дунд — 4 өгүүлбэр, ердийн цэг таслалтай. Хүнд — 5 богино өгүүлбэр, тоо, хаалт, тусгай тэмдэгт дүүрэн.',textLang:'Текстийн хэл',
       done:'Дууслаа! 🏁',timeUp:'Цаг дууслаа ⏱',
       result:'{w} WPM · {a}% нарийвчлал · {n}/{t} өгүүлбэр',newBest:'🎉 Шинэ дээд амжилт!',
       sent:'Өгүүлбэр {i}/{t}',score:'оноо',ghost:'Рекорд',
@@ -630,9 +635,10 @@ I18N.register({
       chatPh:'Өөрийн үгээ бич…',invited:'Урилга илгээлээ',inviteFail:'Урих боломжгүй байна',
       joinedMsg:'{n} нэгдлээ',leftMsg:'{n} гарлаа',go:'ЭХЭЛ!',rush:'Эхнийх нь дууслаа — {n}с!'},
   en:{title:'Type Rush',acc:'Accuracy',time:'Time',start:'Start',again:'Play again',settings:'Settings',close:'Close',
-      rules:'Type the sentence as fast and accurately as you can. Press space after each word. 5 sentences, limited time.',
+      rules:'Type each sentence as fast and accurately as you can. Every level has its own length and punctuation density.',
       tapHint:'Tap here to start typing',
-      lvl:'Level',l1:'Easy (90s)',l2:'Medium (75s)',l3:'Hard (60s)',textLang:'Text language',
+      lvl:'Level',l1:'Easy (120s)',l2:'Medium (100s)',l3:'Hard (90s)',
+      lvlHelp:'Easy - 3 long sentences, almost no punctuation. Medium - 4 sentences with ordinary punctuation. Hard - 5 short sentences full of digits, brackets and symbols.',textLang:'Text language',
       done:'Finished! 🏁',timeUp:"Time's up ⏱",
       result:'{w} WPM · {a}% accuracy · {n}/{t} sentences',newBest:'🎉 New best score!',
       sent:'Sentence {i}/{t}',score:'points',ghost:'Record',
@@ -654,78 +660,87 @@ const PHRASES={
 const BOTS=[['Бат',52],['Сараа',68],['Дорж',44],['Оюун',75]];
 const CARS=['🚗','🚙','🏎️','🚕','🚓','🛻'];
 
-// [text, source] — a wide pool per level so five sentences are never the same five twice
+// [text, source] — difficulty is punctuation density, not length:
+//   1 easy   long sentences, almost no punctuation
+//   2 medium ordinary sentences with commas and periods
+//   3 hard   short sentences packed with symbols, digits and brackets
 const TEXTS={
   mn:{1:[
-    ['Эх орон минь миний хайр.','—'],
-    ['Ном бол мэдлэгийн түлхүүр.','—'],
-    ['Хүн ахтай, дээл захтай.','Зүйр үг'],
-    ['Усыг нь уувал ёсыг нь дага.','Зүйр үг'],
-    ['Эрдэм номтой хүн эрхэм.','Зүйр үг'],
-    ['Сайн хүн санаанаас.','Зүйр үг'],
-    ['Хөдөлмөр хүнийг сайхан болгодог.','—'],
-    ['Өнөөдөр тэнгэр цэлмэг байна.','—'],
-    ['Цаг хугацаа хэнийг ч хүлээдэггүй.','—'],
-    ['Найз нөхөд бол хоёр дахь гэр бүл.','—'],
-    ['Сурах бол насан туршийн зам.','—'],
-    ['Өглөө эрт босвол өдөр урт.','—'],
-    ['Хэлсэндээ хүр, хийснээ дуусга.','—'],
-    ['Хаврын салхи хүйтэн ч нар дулаан.','—'],
-    ['Багаас сурсан зан хожим тус болдог.','—'],
-    ['Гэрийн эзэн зочиндоо хүндэтгэлтэй.','—'],
-    ['Уулын оргилоос хот жижиг харагдана.','—'],
-    ['Өвлийн шөнө од тод гэрэлтэнэ.','—']],
+    ['Өнөөдөр тэнгэр цэлмэг байгаа тул бид уулын бэлээр удаан алхаж болно','—'],
+    ['Ном унших дадал хүнийг өдөр бүр багахан ч гэсэн илүү сайн болгодог','—'],
+    ['Хөдөлмөрч хүн бүр өөрийн зорилгодоо аажим боловч тууштай хүрдэг юм','—'],
+    ['Эрт босч өглөөний цагийг ашиглавал өдөр урт бөгөөд бүтээлтэй өнгөрдөг','—'],
+    ['Найзуудтайгаа хамт өнгөрүүлсэн цаг хамгийн үнэтэй дурсамж болж үлддэг','—'],
+    ['Монгол орны байгаль дөрвөн улиралдаа өөр өөрийн гэсэн гоо үзэсгэлэнтэй','—'],
+    ['Хүн ямар ч насандаа шинэ зүйл сурч чадна гэдгийг хэзээ ч мартаж болохгүй','—'],
+    ['Тэвчээртэй хөдөлмөр эцэстээ хүссэн үр дүнгээ заавал авчирдаг гэдэгт итгээрэй','—'],
+    ['Сайхан ном унших нь өөр нэгэн амьдралыг дотроос нь харах мэт сонирхолтой','—'],
+    ['Өвлийн урт шөнө одод тэнгэрт тод гэрэлтэн бидэн рүү анивчиж байдаг','—'],
+    ['Багаас олж авсан зөв дадал хожим том амжилтын бат бөх суурь болдог','—'],
+    ['Хамтдаа ажиллавал ганцаараа хийхээс хамаагүй хол явж чадна гэдэг үнэн','—'],
+    ['Сурах хүсэл байгаа цагт нас туршид мэдлэгийн эх сурвалж хатдаггүй ажээ','—'],
+    ['Уулын оргилд гарсан хүн доод талын замаа огт өөр нүдээр харж ойлгодог','—'],
+    ['Хаврын анхны бороо газрыг сэрээж шинэ ногоог амилуулдаг гэж ярьдаг билээ','—'],
+    ['Өдөр бүр бага зэрэг дасгал хийвэл бие махбод аяндаа хүчирхэг болж эхэлдэг','—'],
+    ['Аялал хийх бүрт хүн шинэ хүмүүстэй танилцаж өөрийгөө шинээр нээж мэддэг','—'],
+    ['Хийж эхлэх нь хамгийн хэцүү алхам боловч эхэлсэн хүн заавал төгсгөлд хүрдэг','—']],
     2:[
     ['Хүний муу бол хэлэхээр, өөрийн муу бол нуухаар.','Зүйр үг'],
     ['Урт хоолой урагшаа, ухаантай хүн өөдөө.','Зүйр үг'],
     ['Ажил хийвэл дуустал, давс хийвэл уустал.','Зүйр үг'],
     ['Эр хүн зорьсондоо, эмэгтэй хүн эрхэлсэндээ.','Зүйр үг'],
-    ['Хэлсэн үг хэлээгүй үгнээс хүнд.','Зүйр үг'],
-    ['Мянган удаа сонсохоор нэг удаа харсан нь дээр.','Зүйр үг'],
+    ['Мянган удаа сонсохоор, нэг удаа харсан нь дээр.','Зүйр үг'],
     ['Нохой хуцахаараа, хүн ярихаараа.','Зүйр үг'],
     ['Хичээвэл хүн болно, хичээхгүй бол хүн болохгүй.','Зүйр үг'],
     ['Ганц модоор гал болдоггүй, ганц хүнээр хүрээ болдоггүй.','Зүйр үг'],
-    ['Ажилсаг хүнд азгүй өдөр байдаггүй гэж ярьдаг.','—'],
-    ['Тэвчээр бол амжилтад хүрэх хамгийн богино зам юм.','—'],
     ['Мэдэхгүй байх нь ичгүүр биш, сурахгүй байх нь ичгүүр.','—'],
-    ['Хүн бүр өөрийн замыг өөрөө татаж, өөрөө туулдаг.','—'],
-    ['Билэг ухаан эрдэнэ, эрдэм ном далай гэдэг.','—'],
-    ['Аав ээжийн үгийг сонсох нь ухаантай хүний зан.','—'],
-    ['Өнөөдөр хийж чадах ажлаа маргааш руу бүү хойшлуул.','—'],
     ['Алдаа хийхээс бүү ай, алдаагаа давтахаас ай.','—'],
-    ['Бага багаар цуглуулсан мэдлэг том хэрэг болдог.','—']],
+    ['Өнөөдөр хийж чадах ажлаа, маргааш руу бүү хойшлуул.','—'],
+    ['Хэлсэн үг хэлээгүй үгнээс хүнд, бичсэн үг хэлснээс удаан.','—'],
+    ['Ажилсаг хүнд азгүй өдөр байдаггүй, залхуу хүнд азтай өдөр тохиодоггүй.','—'],
+    ['Билэг ухаан эрдэнэ, эрдэм ном далай.','—'],
+    ['Аав ээжийн үгийг сонс, ахмадынхаа сургаалыг сахь.','—'],
+    ['Тэвчээр бол хамгийн богино зам, яарах нь хамгийн урт зам.','—'],
+    ['Бага багаар цуглуулсан мэдлэг, том хэрэг дээр тус болдог.','—'],
+    ['Хүн бүр өөрийн замыг татдаг, өөрийн ачааг өөрөө үүрдэг.','—']],
     3:[
-    ['Эрдэмтэй хүн даруу, эрдэмгүй хүн ихэмсэг байдаг гэдгийг эртний мэргэд хэлсэн юм.','Мэргэн үг'],
-    ['Тэнгэрийн заяа, газрын хишиг гэдэг нь хөдөлмөрлөсөн хүнд л ирдэг гэж өвгөд хэлдэг.','Мэргэн үг'],
-    ['Өөрийгөө ялсан хүн мянган дайсныг ялснаас илүү хүчирхэг гэж эртнээс ярьдаг.','Мэргэн үг'],
-    ['Хуучин ном бүр шинэ уншигчдаа шинэ юм хэлдэг, шинэ уншигч бүр хуучин номоо шинээр нээдэг.','—'],
-    ['Уулын өндөрт бус, ухааны өндөрт хүрэхийг зорих нь илүү үнэ цэнэтэй байдаг.','—'],
-    ['Сайн санаа сарнай цэцэг мэт хүнийг тойрон ургаж, муу санаа өргөст бут мэт өөрийгөө хатгадаг.','—'],
-    ['Хүн төрөлхтний хамгийн том нээлт бол өөрийн буруугаа хүлээн зөвшөөрч, дахин эхлэх зориг юм.','—'],
-    ['Мянган бээрийн зам ганц алхмаас эхэлдэг гэдгийг мартвал хамгийн ойрын зорилго ч хол мэт санагдана.','—'],
-    ['Түүх бол зөвхөн өнгөрсний тухай биш, өнөөдөр ямар шийдвэр гаргах тухай хичээл юм.','—'],
-    ['Сайн ном уншсан хүн олон амьдралыг туулж, огт уншаагүй хүн ганцхан амьдралаар хязгаарлагддаг.','—'],
-    ['Ажлаа хайрлаж хийвэл нэг ч өдөр ажилласан мэт санагдахгүй гэж мэргэд хэлдэг.','Мэргэн үг'],
-    ['Байгаль дэлхийгээ хайрлан хамгаалах нь ирээдүй хойч үедээ үлдээх хамгийн үнэтэй өв юм.','—']]},
+    ['Тэр "За, за!" гэж хэлээд гарлаа.','—'],
+    ['Утас: +976-9911-2233 (ажлын).','—'],
+    ['Үнэ: 12,500 төг. (-15% хямдрал!)','—'],
+    ['Хаяг: bat.d@mail.mn; утас 99112233.','—'],
+    ['Уулзалт: 2026.09.07, 14:30-15:00.','—'],
+    ['Файл "тайлан_v2.pdf" [шинэчилсэн]','—'],
+    ['Асуулт: "Хэзээ ирэх вэ?" - Маргааш.','—'],
+    ['Жагсаалт: 1) ном, 2) дэвтэр, 3) үзэг.','—'],
+    ['#монгол @bat_d 100% бэлэн!','—'],
+    ['Код: if (x > 0) { y = x * 2; }','—'],
+    ['Дүн: 95/100 = 95% (сайн байна).','—'],
+    ['Огноо: 07/09/2026, 09:15 цагт.','—'],
+    ['Тэр асуув: "Юу болов?"; би дуугүй.','—'],
+    ['Сайт: https://usion.mn/games?id=7','—'],
+    ['Тэмдэглэл (чухал!): 3-р сар, 20:00.','—'],
+    ['Дугаар #7 - танхим 2A, 3 давхар.','—'],
+    ['Хэмжээ: 10x20 см; жин ~2,5 кг.','—'],
+    ['Нэр: "Бат-Эрдэнэ", нас: 27.','—']]},
   en:{1:[
-    ['Practice makes perfect.','Proverb'],
-    ['Time is money.','Proverb'],
-    ['Knowledge is power.','Francis Bacon'],
-    ['Stay hungry, stay foolish.','Steve Jobs'],
-    ['Less is more.','—'],
-    ['The sky is clear today.','—'],
-    ['Actions speak louder than words.','Proverb'],
-    ['Every day is a new start.','—'],
-    ['The early bird catches the worm.','Proverb'],
-    ['Rome was not built in a day.','Proverb'],
-    ['Small steps still move you forward.','—'],
-    ['A calm mind types faster.','—'],
-    ['Great things take a little time.','—'],
-    ['Read more, worry less.','—'],
-    ['The best time to start is now.','—'],
-    ['Curiosity beats raw talent.','—'],
-    ['Somewhere, something incredible is waiting to be known.','Carl Sagan'],
-    ['Simplicity is the soul of efficiency.','Austin Freeman']],
+    ['The best way to learn something new is to practice it a little every single day','—'],
+    ['Reading one good book slowly is often better than rushing through ten of them','—'],
+    ['People who keep showing up get much further than people who only make plans','—'],
+    ['A quiet morning with a cup of tea can set the tone for a whole working day','—'],
+    ['Walking outside for twenty minutes clears the mind better than almost anything','—'],
+    ['Almost every skill worth having takes far longer to learn than we expect it to','—'],
+    ['The people around us shape our habits far more than we would like to admit','—'],
+    ['Writing down a small plan the night before makes the whole morning much easier','—'],
+    ['Learning to listen carefully is a skill that very few people ever really practice','—'],
+    ['A long walk in the mountains reminds you how small most daily worries really are','—'],
+    ['The best conversations happen when nobody in the room is trying to win anything','—'],
+    ['Curiosity will take you further than raw talent in almost every field of work','—'],
+    ['Starting badly today is still better than waiting for a perfect moment tomorrow','—'],
+    ['Every winter eventually ends and the first warm morning always feels earned','—'],
+    ['Good work often looks simple because someone spent a long time removing things','—'],
+    ['Asking for help early saves far more time than quietly figuring it out alone','—'],
+    ['The night sky above an empty steppe holds more stars than any city ever shows','—'],
+    ['A short walk after dinner helps you sleep better than any clever evening trick','—']],
     2:[
     ['A journey of a thousand miles begins with a single step.','Lao Tzu'],
     ['The only way to do great work is to love what you do.','Steve Jobs'],
@@ -736,34 +751,41 @@ const TEXTS={
     ['The best way to predict the future is to invent it.','Alan Kay'],
     ['Fall seven times and stand up eight.','Japanese proverb'],
     ['The secret of getting ahead is getting started.','Mark Twain'],
-    ['You miss one hundred percent of the shots you never take.','Wayne Gretzky'],
     ['Quality is not an act, it is a habit.','Aristotle'],
     ['Knowing yourself is the beginning of all wisdom.','Aristotle'],
-    ['Science is a way of thinking much more than it is a body of knowledge.','Carl Sagan'],
-    ['The computer was born to solve problems that did not exist before.','Bill Gates'],
+    ['Science is a way of thinking, much more than a body of knowledge.','Carl Sagan'],
     ['A person who never made a mistake never tried anything new.','Albert Einstein'],
     ['The way to get started is to quit talking and begin doing.','Walt Disney'],
     ['If you want to go fast go alone, if you want to go far go together.','African proverb'],
-    ['Discipline is choosing what you want most over what you want now.','—']],
+    ['Discipline is choosing what you want most, over what you want now.','—'],
+    ['Success is not final, failure is not fatal.','Winston Churchill'],
+    ['First, solve the problem. Then, write the code.','John Johnson']],
     3:[
-    ['Any sufficiently advanced technology is indistinguishable from magic.','Arthur C. Clarke'],
-    ['Programs must be written for people to read, and only incidentally for machines to execute.','Harold Abelson'],
-    ['It always seems impossible until it is done; then it seems like it was always inevitable.','—'],
-    ['The measure of intelligence is the ability to change when the world around you changes.','—'],
-    ['First, solve the problem. Then, write the code; premature optimization is the root of all evil.','John Johnson / Donald Knuth'],
-    ['Whether you think you can or you think you cannot, you are usually right.','Henry Ford'],
-    ['Success is not final, failure is not fatal: it is the courage to continue that counts.','Winston Churchill'],
-    ['The greatest glory in living lies not in never falling, but in rising every time we fall.','Nelson Mandela'],
-    ['We cannot solve our problems with the same thinking we used when we created them.','Albert Einstein'],
-    ['Everything should be made as simple as possible, but not simpler, and that is the hard part.','—'],
-    ['The people who are crazy enough to think they can change the world are the ones who do.','Rob Siltanen'],
-    ['If you cannot explain it simply, you do not understand it well enough to teach it.','—']]}
+    ['Email: dev@usion.mn (24/7 support)','—'],
+    ['Price: $12.50 - 15% = $10.63!','—'],
+    ['Code: if (x > 0) { return x * 2; }','—'],
+    ['Meeting: 2026-09-07, 14:30-15:00.','—'],
+    ['File "report_v2.pdf" [updated]','—'],
+    ['He asked, "Why now?" - No answer.','—'],
+    ['Steps: 1) plan, 2) build, 3) ship.','—'],
+    ['#hashtag @user 100% ready!','—'],
+    ['Score: 95/100 = 95% (great).','—'],
+    ['const a = [1, 2, 3].map(n => n + 1);','—'],
+    ['Room #7 - hall 2A, 3rd floor.','—'],
+    ['Size: 10x20 cm; weight ~2.5 kg.','—'],
+    ['Note (important!): March 3, 20:00.','—'],
+    ['Link: https://usion.mn/g?id=7&x=1','—'],
+    ['Name: "Bat-Erdene", age: 27.','—'],
+    ['a += b; b *= 2; print(a, b);','—'],
+    ['TODO: fix bug #142 (see log).','—'],
+    ['Call +976-9911-2233 @ 09:00.','—']]}
 };
-const LIMITS={1:90,2:75,3:60},SENTS=5,MAXW=250,GRACE=10;   // GRACE: seconds the rest get once someone finishes
+const LIMITS={1:120,2:100,3:90},SENTSN={1:3,2:4,3:5},SENTS=5,MAXW=250,GRACE=10;  // GRACE: seconds the rest get once someone finishes
+function sentsFor(l){ return SENTSN[l]||SENTS; }
 let lvl=1,tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0,best=0;
 let phase='boot';                       // 'solo' | 'hall' | 'race' | 'end'
 let joinedRoom=null,myReady=false,paintQ=false,overtime=0;
-const R={seed:0,pending:0,mp:false,limit:90,lvl:1,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
+const R={seed:0,pending:0,mp:false,sents:SENTS,limit:120,lvl:1,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
 const inp=$('#inp'),box=$('#typebox');
 
 /* ---------- guarded SDK calls (written literally so the publish pipeline detects multiplayer) ---------- */
@@ -794,6 +816,7 @@ function freshQueue(lang,level,n){
 }
 
 /* ---------- typing round ---------- */
+function esc(ch){ return ch==='&'?'&amp;':(ch==='<'?'&lt;':(ch==='>'?'&gt;':ch)); }
 function render(){
   const val=inp.value,el=$('#text');
   const at=Math.min(val.length,target.length);
@@ -804,19 +827,19 @@ function render(){
     const ch=target[i];
     let cls=i<val.length?(val[i]===ch?'ok':'bad'):(i===val.length?'cur':'todo');
     if(i>=ws&&i<we)cls+=' w';
-    html+='<span class="'+cls+'">'+(ch==='<'?'&lt;':ch)+'</span>';
+    html+='<span class="'+cls+'">'+esc(ch)+'</span>';
   }
   el.innerHTML=html;
 }
 function paintDots(){
   const el=$('#dots');
-  if(el.childElementCount!==SENTS){ el.innerHTML='';for(let i=0;i<SENTS;i++)el.appendChild(document.createElement('i')); }
-  for(let i=0;i<SENTS;i++)el.children[i].className=i<idx?'on':(i===idx?'cur':'');
+  if(el.childElementCount!==R.sents){ el.innerHTML='';for(let i=0;i<R.sents;i++)el.appendChild(document.createElement('i')); }
+  for(let i=0;i<R.sents;i++)el.children[i].className=i<idx?'on':(i===idx?'cur':'');
 }
 function load(){
   const q=queue[idx];target=q[0];$('#author').textContent=q[1]&&q[1]!=='—'?'— '+q[1]:'';
   inp.value='';inp._last='';render();
-  $('#prog').textContent=I18N.t('sent',{i:idx+1,t:SENTS});
+  $('#prog').textContent=I18N.t('sent',{i:idx+1,t:R.sents});
   paintDots();
 }
 function stats(){
@@ -825,7 +848,7 @@ function stats(){
   const acc=typedChars?Math.max(0,Math.round((typedChars-errors)/typedChars*100)):100;
   $('#wpm').textContent=wpm;$('#acc').textContent=acc+'%';return{wpm,acc};
 }
-function myFrac(){ return Math.min(1,(idx+(target.length?Math.min(1,inp.value.length/target.length):0))/SENTS); }
+function myFrac(){ return Math.min(1,(idx+(target.length?Math.min(1,inp.value.length/target.length):0))/R.sents); }
 inp.addEventListener('input',()=>{
   if(!running){ inp.value='';return; }
   const v=inp.value,i=v.length-1;
@@ -838,20 +861,27 @@ inp.addEventListener('input',()=>{
   if(v===target){
     finished++;score+=Math.round(target.length*(1+Math.max(0,timeLeft)/R.limit));Sfx.ok();haptic(10);
     idx++;
-    if(idx>=SENTS){ if(R.mp)finishMine(); else end(true); }
+    if(idx>=R.sents){ if(R.mp)finishMine(); else end(true); }
     else load();
   }
   paintTrack();
 });
 /* the visible text IS the field: tapping it opens the keyboard */
 box.addEventListener('pointerdown',()=>{ if(running)setTimeout(focusInput,0); });
+/* a phone only raises the keyboard from inside a user gesture, so treat ANY tap on the
+   playfield (and the countdown) as the gesture that opens it */
+document.addEventListener('pointerdown',e=>{
+  if(!running&&$('#cdown').hidden)return;
+  if(e.target.closest('button,.overlay,.sheet,#chatInp'))return;
+  setTimeout(focusInput,0);
+},{passive:true});
 inp.addEventListener('focus',()=>box.classList.add('on'));
 inp.addEventListener('blur',()=>box.classList.remove('on'));
 function focusInput(){ try{ inp.focus({preventScroll:true}); const n=inp.value.length;inp.setSelectionRange(n,n); }catch(e){} }
 
 function startRound(cfg){
   R.limit=cfg.limit;R.lvl=cfg.lvl;R.tl=cfg.tl;R.seed=cfg.seed;R.mp=!!cfg.mp;R.ended=false;R.hostT=null;overtime=0;
-  queue=cfg.queue;R.cum=[0];queue.forEach(q=>R.cum.push(R.cum[R.cum.length-1]+q[0].length));
+  queue=cfg.queue;R.sents=queue.length;R.cum=[0];queue.forEach(q=>R.cum.push(R.cum[R.cum.length-1]+q[0].length));
   idx=0;typedChars=0;correctChars=0;errors=0;score=0;finished=0;timeLeft=cfg.limit;
   hideOverlays();$('#track').hidden=!R.seats.length;$('#tbarw').className='timerbar';
   inp.disabled=false;load();stats();$('#time').textContent=fmtTime(timeLeft);$('#tbar').style.width='100%';
@@ -884,7 +914,7 @@ function startSolo(){
     R.seats.push('ghost');R.bots.ghost={wpm:ghostWpm,chars:0,i:0,score:0,done:false,ms:0};
   }
   R.seats.forEach(id=>{ R.prog[id]={f:0,w:0,s:0,d:0,gone:false}; });
-  startRound({queue:freshQueue(tl,lvl,SENTS),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false});
+  startRound({queue:freshQueue(tl,lvl,sentsFor(lvl)),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false});
 }
 
 /* ---------- multiplayer plumbing ---------- */
@@ -1026,7 +1056,7 @@ function hostStart(withBots){
     });
   }
   if(seats.length<2)return toast(I18N.t('needTwo'));
-  const d={seed:(Date.now()^Math.floor(Math.random()*1e9))>>>0,seats,bots,lvl,tl,limit:LIMITS[lvl]};
+  const d={seed:(Date.now()^Math.floor(Math.random()*1e9))>>>0,seats,bots,lvl,tl,limit:LIMITS[lvl],sents:sentsFor(lvl)};
   act('race_start',d);          // sequenced + stored: rejoins rebuild the race from it
   applyRaceStart(d);
 }
@@ -1045,14 +1075,18 @@ function applyRaceStart(d){
   if(d.tl==='en'||d.tl==='mn')tl=d.tl;
   markChips();hideOverlays();
   countdown(()=>{
-    startRound({queue:seededQueue(d.seed,tl,lvl,SENTS),limit:d.limit||LIMITS[lvl],lvl,tl,seed:d.seed,mp:true});
+    startRound({queue:seededQueue(d.seed,tl,lvl,d.sents||sentsFor(lvl)),limit:d.limit||LIMITS[lvl],lvl,tl,seed:d.seed,mp:true});
     R.sendT=setInterval(sendMine,100);
     paintTrack();updateChatBtn();
   });
 }
 function countdown(done){
   const el=$('#cdown');let n=3;
-  const show=v=>{ const sp=document.createElement('span');sp.textContent=v;el.replaceChildren(sp); };
+  const show=v=>{
+    const sp=document.createElement('span');sp.textContent=v;
+    const h=document.createElement('b');h.className='cdhint';h.textContent=I18N.t('tapHint');
+    el.replaceChildren(sp,h);
+  };
   el.hidden=false;show(n);Sfx.tick();
   const t=setInterval(()=>{
     n--;
@@ -1062,7 +1096,7 @@ function countdown(done){
 }
 function sendMine(){
   const s=stats(),p=R.prog[Roster.myId]||(R.prog[Roster.myId]={});
-  p.f=Math.max(p.f||0,myFrac());p.w=s.wpm;p.s=score;p.d=idx>=SENTS?1:0;
+  p.f=Math.max(p.f||0,myFrac());p.w=s.wpm;p.s=score;p.d=idx>=R.sents?1:0;
   if(!isHost())rt('prog',{f:+p.f.toFixed(3),w:s.wpm,s:score,d:p.d});
 }
 /* one 15 Hz loop: steps the pace cars, and on the host broadcasts the whole field */
@@ -1082,8 +1116,8 @@ function stepBot(id,dt){
   if(!b||!p||b.done)return;
   b.chars+=b.wpm*5/60*dt*(0.88+Math.random()*0.24);
   const total=R.cum[R.cum.length-1]||1;
-  while(b.i<SENTS&&b.chars>=R.cum[b.i+1]){ b.score+=Math.round(queue[b.i][0].length*(1+Math.max(0,timeLeft)/R.limit)); b.i++; }
-  if(b.i>=SENTS&&!b.done){ b.done=true;b.ms=performance.now()-startT; }
+  while(b.i<R.sents&&b.chars>=R.cum[b.i+1]){ b.score+=Math.round(queue[b.i][0].length*(1+Math.max(0,timeLeft)/R.limit)); b.i++; }
+  if(b.i>=R.sents&&!b.done){ b.done=true;b.ms=performance.now()-startT; }
   p.f=Math.min(1,b.chars/total);p.w=b.wpm;p.s=b.score;p.d=b.done?1:0;
 }
 function finishMine(){
@@ -1172,7 +1206,7 @@ async function end(done){
   const s=stats(),hl=saveRecords(score,s.wpm,s.acc,false,false);
   $('#endTitle').textContent=done?I18N.t('done'):I18N.t('timeUp');
   $('#finalScore').textContent=score;
-  $('#endMsg').textContent=(hl.best&&score>0?I18N.t('newBest')+' ':'')+I18N.t('result',{w:s.wpm,a:s.acc,n:finished,t:SENTS});
+  $('#endMsg').textContent=(hl.best&&score>0?I18N.t('newBest')+' ':'')+I18N.t('result',{w:s.wpm,a:s.acc,n:finished,t:R.sents});
   $('#standings').hidden=true;
   $('#endRecs').innerHTML=recRows(hl);
   $('#againBtn').textContent=I18N.t('again');
@@ -1235,7 +1269,7 @@ function paintTrack(){
     R.seats.forEach((id,k)=>{
       const lane=el.children[k];if(!lane)return;
       const mine=id===Roster.myId;
-      const p=mine?{f:myFrac(),w:+$('#wpm').textContent||0,d:idx>=SENTS?1:0}:(R.prog[id]||{});
+      const p=mine?{f:myFrac(),w:+$('#wpm').textContent||0,d:idx>=R.sents?1:0}:(R.prog[id]||{});
       lane.querySelector('.racer').style.setProperty('--f',Math.min(1,p.f||0));
       lane.querySelector('.lwpm').textContent=p.gone?'—':Math.round(p.w||0);
       lane.classList.toggle('done',!!p.d);
@@ -1291,19 +1325,19 @@ function openRecords(){
 $('#lvlChips').onclick=e=>{ const c=e.target.closest('.chip');if(c)pickLvl(c.dataset.lvl); };
 $('#hallLvl').onclick=e=>{ const c=e.target.closest('.chip');if(c&&isHost())pickLvl(c.dataset.lvl); };
 $('#tlChips').onclick=e=>{ const c=e.target.closest('.chip');if(!c)return;tl=c.dataset.tl;Store.set('tl',tl);markChips();if(phase==='hall')shareInfo(); };
-$('#menuStart').onclick=startSolo;
+$('#menuStart').onclick=()=>{ focusInput();startSolo(); };
 $('#setBtn').onclick=openMenu;
 $('#menuBtn2').onclick=openMenu;
 $('#recBtn').onclick=openRecords;
 $('#recClose').onclick=()=>{ $('#recOv').hidden=true; };
-$('#againBtn').onclick=()=>{ if(joinedRoom)openHall(joinedRoom);else startSolo(); };
+$('#againBtn').onclick=()=>{ if(joinedRoom)openHall(joinedRoom);else{ focusInput();startSolo(); } };
 $('#menuInvite').onclick=inviteFriends;
 $('#endInvite').onclick=inviteFriends;
 $('#recInvite').onclick=inviteFriends;
 $('#inviteBtn').onclick=inviteFriends;
 $('#readyBtn').onclick=()=>{ myReady=!myReady;Sfx.tick();shareInfo(); };
-$('#startBtn').onclick=()=>{ if(isHost()&&Roster.allReady())hostStart(false); };
-$('#botsBtn').onclick=()=>{ if(isHost())hostStart(true); };
+$('#startBtn').onclick=()=>{ if(isHost()&&Roster.allReady()){ focusInput();hostStart(false); } };
+$('#botsBtn').onclick=()=>{ if(isHost()){ focusInput();hostStart(true); } };
 $('#chatBtn').onclick=openChat;
 $('#chatSheet').onclick=e=>{ if(e.target.id==='chatSheet'){$('#chatSheet').hidden=true;focusInput();} };
 $('#chatSend').onclick=()=>{ if(Chat.send($('#chatInp').value)){ $('#chatInp').value='';$('#chatSheet').hidden=true;focusInput(); } };

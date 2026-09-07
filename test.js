@@ -63,7 +63,8 @@ async function newPage(browser, opts) {
     const overlays = await page.$$eval('.overlay:not([hidden])', e => e.length);
     if (overlays !== 0) fail('solo', 'overlay visible at launch: ' + overlays);
     await page.screenshot({ path: 'shots/type-rush-1-solo.png' });
-    for (let i = 0; i < 5; i++) { const t = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', t, { delay: 4 }); }
+    const nSolo = await page.evaluate(() => R.sents);
+    for (let i = 0; i < nSolo; i++) { const t = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', t, { delay: 4 }); }
     await page.waitForTimeout(400);
     const calls = await page.evaluate(() => window.__calls);
     if (!calls.some(c => c[0] === 'submit')) fail('solo', 'no leaderboard submit');
@@ -137,7 +138,8 @@ async function newPage(browser, opts) {
     if (q1 !== q2) fail('mp', 'seeded queues differ');
     await host.page.screenshot({ path: 'shots/type-rush-6-race.png' });
     // host types the whole race, guest only the first sentence -> host must win
-    for (let i = 0; i < 5; i++) { const t = await host.page.evaluate(() => target); await host.page.fill('#inp', ''); await host.page.type('#inp', t, { delay: 3 }); }
+    const nRace = await host.page.evaluate(() => R.sents);
+    for (let i = 0; i < nRace; i++) { const t = await host.page.evaluate(() => target); await host.page.fill('#inp', ''); await host.page.type('#inp', t, { delay: 3 }); }
     const g = await guest.page.evaluate(() => target); await guest.page.fill('#inp', ''); await guest.page.type('#inp', g, { delay: 3 });
     await host.page.waitForTimeout(1200);
     const seenBeforeGrace = await host.page.evaluate(() => (R.prog['u2'] || {}).f || 0);
@@ -186,6 +188,43 @@ async function newPage(browser, opts) {
     await page.screenshot({ path: 'shots/type-rush-8-bots.png' });
     if (errors.length) fail('bots', 'console: ' + errors.join(' | ').slice(0, 300));
     if (failures === before) ok('bots', 'seats=' + seats);
+    await ctx.close();
+  }
+
+  /* ---------- 4. hard level: short, symbol-heavy sentences render and type exactly ---------- */
+  {
+    const before = failures;
+    const { ctx, page, errors } = await newPage(browser, { me: 'u1', name: 'Sym', mode: 'single', roomId: null, playerIds: ['u1'] });
+    await page.exposeFunction('__send', () => {});
+    await page.goto(URL);
+    await page.waitForTimeout(400);
+    // english hard pool: brackets, digits, &, <, > — the escaping path
+    await page.evaluate(() => { tl = 'en'; lvl = 3; startSolo(); });
+    await page.waitForTimeout(200);
+    const n = await page.evaluate(() => R.sents);
+    if (n !== 5) fail('hard', 'sentence count=' + n);
+    const lens = await page.evaluate(() => queue.map(q => q[0].length));
+    if (Math.max(...lens) > 45) fail('hard', 'hard sentences are not short: ' + lens.join(','));
+    for (let i = 0; i < n; i++) {
+      // what the player reads must be exactly what they have to type (no &amp; leaking through)
+      const [shown, want] = await page.evaluate(() => [document.getElementById('text').textContent, target]);
+      if (shown !== want) fail('hard', `rendered "${shown}" != target "${want}"`);
+      await page.fill('#inp', '');
+      await page.type('#inp', want, { delay: 3 });
+    }
+    await page.waitForTimeout(400);
+    if (await page.$eval('#endOv', e => e.hidden)) fail('hard', 'round did not finish');
+    const acc = await page.evaluate(() => +document.getElementById('acc').textContent.replace('%', ''));
+    if (acc !== 100) fail('hard', 'typing the exact text scored ' + acc + '% accuracy');
+    await page.screenshot({ path: 'shots/type-rush-9-hard.png' });
+    // the settings panel explains what the levels mean
+    await page.evaluate(() => { markChips(); openMenu(); });
+    await page.waitForTimeout(250);
+    const help = await page.$eval('.lvlhelp', e => e.textContent.trim());
+    if (!help) fail('hard', 'level help line is empty');
+    await page.screenshot({ path: 'shots/type-rush-10-levels.png' });
+    if (errors.length) fail('hard', 'console: ' + errors.join(' | ').slice(0, 300));
+    if (failures === before) ok('hard level', `sentences=${n} maxLen=${Math.max(...lens)} acc=${acc}%`);
     await ctx.close();
   }
 
