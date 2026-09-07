@@ -297,6 +297,17 @@ const receipts = [];
     if (await page.$eval('#lessons', e => e.hidden)) fail('tabs', 'practice tab did not open the lesson list');
     const rows = await page.$$eval('#llist .les', e => e.length);
     if (rows < 40) fail('tabs', 'only ' + rows + ' lesson rows');
+    const groups = await page.$$eval('#llist .grp', gs => gs.map(g => ({
+      name: g.querySelector('.gtxt b').textContent,
+      keys: g.querySelector('.gtxt span').textContent,
+      hand: !!g.querySelector('svg.hand'),
+      lessons: g.querySelectorAll('.les').length,
+    })));
+    if (groups.length !== 8) fail('tabs', 'expected 8 finger groups, got ' + groups.length);
+    if (!groups.every(g => g.hand && g.lessons >= 4)) fail('tabs', 'a finger group has no hand drawing or too few lessons');
+    if (groups[0].name !== 'Зүүн долоовор') fail('tabs', 'first group is ' + groups[0].name);
+    if (groups[4].name !== 'Баруун долоовор') fail('tabs', 'fifth group is ' + groups[4].name);
+    if (groups[0].keys !== 'өажэсм₮:') fail('tabs', 'left index keys are ' + groups[0].keys);
     await page.screenshot({ path: 'shots/type-rush-12-lessons.png' });
 
     // lesson 2 is behind the paywall, lesson 1 is not
@@ -306,7 +317,7 @@ const receipts = [];
     }));
     if (locks.first) fail('pay', 'the first lesson is not free');
     if (!locks.second || !locks.free) fail('pay', 'later lessons / free typing are not locked');
-    await page.click('#llist .les:nth-child(3)');
+    await (await page.$$('#llist .les'))[2].click();
     await page.waitForTimeout(250);
     if (await page.$eval('#payOv', e => e.hidden)) fail('pay', 'locked lesson did not open the unlock sheet');
     await page.screenshot({ path: 'shots/type-rush-15-unlock.png' });
@@ -319,7 +330,7 @@ const receipts = [];
     await page.waitForTimeout(300);
     const les = await page.evaluate(() => ({ i: R.lesson, drill: R.drill, endless: R.endless, lines: queue.length, text: queue[0][0] }));
     if (les.i !== 0 || !les.drill || les.endless) fail('tabs', `lesson round not started (i=${les.i})`);
-    if (!/^[өр ]+$/.test(les.text)) fail('tabs', 'lesson 1 drills the wrong keys: ' + les.text);
+    if (!/^[өа ]+$/.test(les.text)) fail('tabs', 'lesson 1 drills the wrong keys: ' + les.text);
     // a lesson teaches Shift: the wrong case is a mistake here, unlike in a race
     const wrongCase = await page.evaluate(() => target.toUpperCase());
     await page.fill('#inp', '');
@@ -345,7 +356,7 @@ const receipts = [];
     if (!(await page.$eval('#llist .les:not(.free)', e => e.classList.contains('done')))) fail('tabs', 'finished lesson not marked done');
 
     // paying once unlocks every lesson, and the receipt is settled immediately
-    await page.click('#llist .les:nth-child(3)');
+    await (await page.$$('#llist .les'))[2].click();
     await page.waitForTimeout(200);
     await page.click('#payGo');
     await page.waitForTimeout(700);
@@ -372,12 +383,12 @@ const receipts = [];
       const rows = [...document.querySelectorAll('#llist .les:not(.free)')];
       return { first: rows[0].querySelector('.lkeys').textContent, count: rows.length, done: rows[0].classList.contains('done') };
     });
-    if (en.first !== 'fj') fail('tabs', 'english course does not start on the home row: ' + en.first);
+    if (en.first !== 'fg') fail('tabs', 'english course does not start on the home row: ' + en.first);
     if (en.done) fail('tabs', 'mongolian progress leaked into the english course');
     await page.click('#llist .les:not(.free)');
     await page.waitForTimeout(250);
     const enText = await page.evaluate(() => queue[0][0]);
-    if (!/^[fj ]+$/.test(enText)) fail('tabs', 'english lesson 1 drills the wrong keys: ' + enText);
+    if (!/^[fg ]+$/.test(enText)) fail('tabs', 'english lesson 1 drills the wrong keys: ' + enText);
     await page.screenshot({ path: 'shots/type-rush-14-english.png' });
     await page.evaluate(() => { setTextLang('mn'); showLessons(); });
     await page.waitForTimeout(250);
@@ -426,7 +437,7 @@ const receipts = [];
     await page.waitForTimeout(400);
     await page.click('[data-tab="drill"]');
     await page.waitForTimeout(300);
-    await page.click('#llist .les:nth-child(3)');
+    await (await page.$$('#llist .les'))[2].click();
     await page.waitForTimeout(200);
     await page.click('#payGo');
     await page.waitForTimeout(1200);

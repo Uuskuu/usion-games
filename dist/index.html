@@ -218,6 +218,16 @@ body{
 .lkeys{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:3px;flex:none}
 .lbest{font-size:11px;font-weight:800;color:var(--ok);font-variant-numeric:tabular-nums;flex:none}
 
+/* ---- finger groups ---- */
+.grp{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.ghead{display:flex;align-items:center;gap:11px;padding:8px 10px;background:transparent;border:0;color:var(--fg);font-family:inherit;text-align:left;width:100%}
+.hand{width:44px;height:44px;flex:none}
+.gtxt{flex:1;min-width:0}
+.gtxt b{display:block;font-size:14px;font-weight:800;letter-spacing:-.2px}
+.gtxt span{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:2px}
+.gdone{font-size:11px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.grp.full .gdone{color:var(--ok)}
+
 /* ---- unlock / paywall ---- */
 .payrow{display:flex;align-items:center;gap:11px;padding:12px;margin:4px 0 6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);text-align:left}
 .payico{width:42px;height:42px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:21px;flex:none}
@@ -744,7 +754,9 @@ I18N.register({
       sent:'Өгүүлбэр {i}/{t}',score:'оноо',ghost:'Рекорд',
       tabRace:'Уралдах',tabDrill:'Дасгал',drillCount:'Бичсэн: {n}',drillHint:'Цаггүй дасгал — оноо тооцохгүй',
       drillTitle:'Гарын дасгал',drillDone:'{d}/{t} дасгал',drillFree:'Чөлөөт бичих',drillFreeSub:'Цаггүй, эцэсгүй',
-      drillCaps:'том үсэг',drillReview:'Давтлага',drillText:'Эх шивэх',drillBack:'Жагсаалт',drillNext:'Дараагийн',
+      drillCaps:'том үсэг',drillReview:'Давтлага',drillText:'Эх шивэх',
+      fLeft:'Зүүн',fRight:'Баруун',f_index:'долоовор',f_middle:'дунд',f_ring:'ядам',f_pinky:'чигчий',
+      lk_home:'Гэрийн эгнээ',lk_up:'Дээд эгнээ',lk_low:'Доод эгнээ',lk_caps:'Том үсэг',lk_rev:'Давтлага',drillBack:'Жагсаалт',drillNext:'Дараагийн',
       drillAgain:'Дахин оролдох',drillOk:'Дасгал дууслаа',drillRes:'{w} WPM · {a}% нарийвчлал',drillNew:'🎉 Шинэ дээд WPM!',
       payTitle:'Дасгалыг нээх',paySub:'Нэг удаа төлөөд үүрд ашиглана — Монгол, Англи хоёулангийн бүх хичээл нээгдэнэ.',
       payCount:'{n} хичээл · МН + EN',payGo:'{p}₮-өөр нээх',payCancel:'Болих',payFree:'ҮНЭГҮЙ',
@@ -771,7 +783,9 @@ I18N.register({
       sent:'Sentence {i}/{t}',score:'points',ghost:'Record',
       tabRace:'Race',tabDrill:'Practice',drillCount:'Typed: {n}',drillHint:'Untimed practice - nothing is scored',
       drillTitle:'Touch-typing course',drillDone:'{d}/{t} lessons',drillFree:'Free typing',drillFreeSub:'No clock, no end',
-      drillCaps:'capitals',drillReview:'Review',drillText:'Free text',drillBack:'Lessons',drillNext:'Next',
+      drillCaps:'capitals',drillReview:'Review',drillText:'Free text',
+      fLeft:'Left',fRight:'Right',f_index:'index',f_middle:'middle',f_ring:'ring',f_pinky:'little',
+      lk_home:'Home row',lk_up:'Upper row',lk_low:'Lower row',lk_caps:'Capitals',lk_rev:'Review',drillBack:'Lessons',drillNext:'Next',
       drillAgain:'Try again',drillOk:'Lesson complete',drillRes:'{w} WPM · {a}% accuracy',drillNew:'🎉 New best WPM!',
       payTitle:'Unlock the course',paySub:'Pay once, keep it forever - every lesson in both the Mongolian and English courses.',
       payCount:'{n} lessons · MN + EN',payGo:'Unlock for {p}₮',payCancel:'Cancel',payFree:'FREE',
@@ -916,46 +930,76 @@ const TEXTS={
     ['TODO: fix bug #142 (see log).','—'],
     ['Call +976-9911-2233 @ 09:00.','—']]}
 };
-/* Mongolian keyboard, taught the way a touch-typing course does: index fingers first,
-   then middle, ring and little fingers, row by row — the same order as blesson.mn/Computer. */
-const COURSE={
-  mn:{
-    pairs:[
-      ['ө','р'],['б','о'],['ы','л'],['а','х'],           // home row: F J, D K, S L, G H
-      ['ж','г'],['у','ш'],['ц','ү'],['ф','з'],['э','н'], // upper row: R U, E I, W O, Q P, T Y
-      ['с','т'],['ё','ь'],['ч','в'],['я','ю'],['м','и'], // lower row: V M, C comma, X dot, Z slash, B N
-      ['п','к'],['е','щ']                                // right little finger + number row
-    ],
-    syms:[[':','.','5','6'],['₮','_','4','7'],['"',',','3','8'],['-','%','2','9'],['№','?','1','0']]
-  },
-  en:{
-    pairs:[
-      ['f','j'],['d','k'],['s','l'],['a',';'],['g','h'], // home row, index outwards
-      ['r','u'],['e','i'],['w','o'],['q','p'],['t','y'], // upper row
-      ['v','m'],['c',','],['x','.'],['z','/'],['b','n']  // lower row
-    ],
-    syms:[[':',';','5','6'],['$','_','4','7'],['"','\'','3','8'],['-','%','2','9'],['#','?','1','0']]
-  }
+/* The course is grouped the way a typing chart is: one group per finger, in the order a
+   touch-typing class teaches them — index, middle, ring, little — left hand then right. */
+const FCOL={index:'#4dd6ff',middle:'#ff5fa2',ring:'#ffd23f',pinky:'#ff9f43'};
+const FPOS={pinky:0,ring:1,middle:2,index:3};
+const FINGERS={
+  mn:[
+    {id:'li',h:'l',f:'index', rows:{home:['ө','а'],up:['ж','э'],low:['с','м'],num:['₮',':']}},
+    {id:'lm',h:'l',f:'middle',rows:{home:['б'],up:['у'],low:['ё'],num:['"']}},
+    {id:'lr',h:'l',f:'ring',  rows:{home:['ы'],up:['ц'],low:['ч'],num:['-']}},
+    {id:'lp',h:'l',f:'pinky', rows:{home:['й'],up:['ф'],low:['я'],num:['№']}},
+    {id:'ri',h:'r',f:'index', rows:{home:['х','р'],up:['н','г'],low:['и','т'],num:['.','_']}},
+    {id:'rm',h:'r',f:'middle',rows:{home:['о'],up:['ш'],low:['ь'],num:[',']}},
+    {id:'rr',h:'r',f:'ring',  rows:{home:['л'],up:['ү'],low:['в'],num:['%']}},
+    {id:'rp',h:'r',f:'pinky', rows:{home:['д','п'],up:['з','к'],low:['ю'],num:['?','е','щ']}}
+  ],
+  en:[
+    {id:'li',h:'l',f:'index', rows:{home:['f','g'],up:['r','t'],low:['v','b'],num:['4','5']}},
+    {id:'lm',h:'l',f:'middle',rows:{home:['d'],up:['e'],low:['c'],num:['3']}},
+    {id:'lr',h:'l',f:'ring',  rows:{home:['s'],up:['w'],low:['x'],num:['2']}},
+    {id:'lp',h:'l',f:'pinky', rows:{home:['a'],up:['q'],low:['z'],num:['1']}},
+    {id:'ri',h:'r',f:'index', rows:{home:['h','j'],up:['y','u'],low:['n','m'],num:['6','7']}},
+    {id:'rm',h:'r',f:'middle',rows:{home:['k'],up:['i'],low:[','],num:['8']}},
+    {id:'rr',h:'r',f:'ring',  rows:{home:['l'],up:['o'],low:['.'],num:['9']}},
+    {id:'rp',h:'r',f:'pinky', rows:{home:[';',"'"],up:['p','['],low:['/'],num:['0','-','=']}}
+  ]
 };
-let LESSONS=[];
+function handSvg(hand,finger){
+  const col=FCOL[finger],pos=FPOS[finger];
+  let g='';
+  for(let i=0;i<4;i++){
+    const x=8+i*11,on=i===pos,y=on?5:24;
+    g+='<rect x="'+x+'" y="'+y+'" width="9" height="'+(52-y)+'" rx="4.5" fill="#ededed"/>';
+    if(on)g+='<rect x="'+(x+1)+'" y="'+(y+2)+'" width="7" height="9" rx="3.5" fill="'+col+'"/>';
+  }
+  const inner=g+'<rect x="6" y="34" width="44" height="18" rx="7" fill="#e3e3e3"/><ellipse cx="52" cy="41" rx="6" ry="8" fill="#dcdcdc"/>';
+  return '<svg class="hand" viewBox="0 0 58 56" aria-hidden="true">'+
+    (hand==='r'?'<g transform="translate(58,0) scale(-1,1)">'+inner+'</g>':inner)+'</svg>';
+}
+function fingerName(g){ return I18N.t((g.hand||g.h)==='l'?'fLeft':'fRight')+' '+I18N.t('f_'+(g.finger||g.f)); }
+function groupKeys(g){ return [].concat(g.rows.home,g.rows.up,g.rows.low,g.rows.num); }
+
+let LESSONS=[],GROUPS=[];
 function buildLessons(lang){
-  const c=COURSE[lang]||COURSE.mn;
-  const out=[];let learned=[];
-  c.pairs.forEach((pair,i)=>{
-    learned=learned.concat(pair);
-    out.push({k:'let',keys:pair.slice(),pool:learned.slice(),caps:false});
-    out.push({k:'let',keys:pair.slice(),pool:learned.slice(),caps:true});
-    if(i%2===1)out.push({k:'rev',keys:learned.slice(-4),pool:learned.slice(),caps:false});
+  const src=FINGERS[lang]||FINGERS.mn;
+  const out=[],groups=[];
+  let learned=[];
+  src.forEach(g=>{
+    const letters=[].concat(g.rows.home,g.rows.up,g.rows.low);
+    const all=groupKeys(g);
+    const grp={id:g.id,hand:g.h,finger:g.f,keys:all,from:out.length,count:0};
+    [['home','home'],['up','up'],['low','low']].forEach(([key,kind])=>{
+      const ks=g.rows[key];
+      if(!ks.length)return;
+      learned=learned.concat(ks);
+      out.push({id:g.id+'_'+kind,k:kind,g:grp,keys:ks.slice(),pool:learned.slice(),caps:false});
+    });
+    out.push({id:g.id+'_caps',k:'caps',g:grp,keys:letters.slice(),pool:letters.slice(),caps:true});
+    learned=learned.concat(g.rows.num);
+    out.push({id:g.id+'_rev',k:'rev',g:grp,keys:all.slice(),pool:learned.slice(),caps:false});
+    grp.count=out.length-grp.from;
+    groups.push(grp);
   });
-  c.syms.forEach(r=>out.push({k:'sym',keys:r.slice(),pool:r.slice(),caps:false}));
-  out.push({k:'txt',keys:[],pool:[],caps:false});
+  const last={id:'text',k:'txt',g:null,keys:[],pool:[],caps:false};
+  out.push(last);
+  GROUPS=groups;
   return out;
 }
-function lessonName(l,i){
+function lessonName(l){
   if(l.k==='txt')return I18N.t('drillText');
-  if(l.k==='rev')return I18N.t('drillReview');
-  if(l.k==='sym')return l.keys.join(' ');
-  return l.keys.join(' ')+(l.caps?' · '+I18N.t('drillCaps'):'');
+  return I18N.t('lk_'+l.k);
 }
 /* nonsense syllables built from the keys this lesson drills, weighted to the new ones */
 function drillLine(l){
@@ -964,7 +1008,7 @@ function drillLine(l){
     let s='';
     const len=2+rnd(3);
     for(let k=0;k<len;k++){
-      const src=(Math.random()<0.62?l.keys:l.pool);
+      const src=(Math.random()<0.66?l.keys:l.pool);
       let ch=src[rnd(src.length)];
       if(l.caps&&Math.random()<0.5)ch=ch.toUpperCase();
       s+=ch;
@@ -1177,7 +1221,7 @@ function startDrill(){
 function startCurrent(){ tab==='drill'?showLessons():startSolo(); }
 
 /* ---------- the course ---------- */
-function lesKey(i){ return 'les'+tl+i; }                 // each course keeps its own progress
+function lesKey(i){ return 'les'+tl+'_'+(LESSONS[i]?LESSONS[i].id:i); }   // stable per course + lesson
 function lessonBest(i){ return Records.get(lesKey(i),0); }
 function showLessons(){
   clearInterval(timer);stopNetLoops();running=false;phase='end';
@@ -1191,20 +1235,13 @@ function showLessons(){
   const done=LESSONS.filter((_,i)=>lessonBest(i)>0).length;
   $('#lprog').textContent=I18N.t('drillDone',{d:done,t:LESSONS.length});
   const list=$('#llist');list.innerHTML='';
-  const free=document.createElement('button');
-  free.className='les free';free.dataset.i='free';
-  free.innerHTML='<span class="lnum">∞</span>';
-  const fn=document.createElement('span');fn.className='lname';fn.textContent=I18N.t('drillFree');
-  const fk=document.createElement('span');fk.className='lkeys';fk.textContent=I18N.t('drillFreeSub');
-  fk.style.letterSpacing='0';fk.style.fontWeight='600';
-  if(!pro)free.classList.add('lock');
-  free.append(fn,fk);list.appendChild(free);
-  LESSONS.forEach((l,i)=>{
+  const row=(i,l)=>{
     const b=document.createElement('button');
     b.className='les'+(lessonBest(i)>0?' done':'');b.dataset.i=i;
     const num=document.createElement('span');num.className='lnum';num.textContent=i+1;
-    const nm=document.createElement('span');nm.className='lname';nm.textContent=lessonName(l,i);
-    const ks=document.createElement('span');ks.className='lkeys';ks.textContent=l.k==='txt'?'¶':l.keys.slice(0,4).join('');
+    const nm=document.createElement('span');nm.className='lname';nm.textContent=lessonName(l);
+    const ks=document.createElement('span');ks.className='lkeys';
+    ks.textContent=l.k==='txt'?'¶':(l.caps?l.keys.slice(0,3).map(x=>x.toUpperCase()):l.keys.slice(0,4)).join('');
     b.append(num,nm,ks);
     if(lessonLocked(i)){ b.classList.add('lock');const lk=document.createElement('span');lk.className='lbest';lk.style.color='var(--muted)';lk.textContent='🔒';b.appendChild(lk); }
     else{
@@ -1212,8 +1249,31 @@ function showLessons(){
       const bs=document.createElement('span');bs.className='lbest';bs.textContent=lessonBest(i)?lessonBest(i)+' WPM':'';
       b.appendChild(bs);
     }
-    list.appendChild(b);
+    return b;
+  };
+  const free=document.createElement('button');
+  free.className='les free'+(pro?'':' lock');free.dataset.i='free';
+  free.innerHTML='<span class="lnum">∞</span>';
+  const fn=document.createElement('span');fn.className='lname';fn.textContent=I18N.t('drillFree');
+  const fk=document.createElement('span');fk.className='lkeys';fk.textContent=I18N.t('drillFreeSub');
+  fk.style.letterSpacing='0';fk.style.fontWeight='600';
+  free.append(fn,fk);list.appendChild(free);
+  GROUPS.forEach(g=>{
+    const done=LESSONS.map((l,i)=>i).filter(i=>i>=g.from&&i<g.from+g.count&&lessonBest(i)>0).length;
+    const wrap=document.createElement('div');wrap.className='grp'+(done===g.count?' full':'');
+    const head=document.createElement('div');head.className='ghead';
+    head.innerHTML=handSvg(g.hand,g.finger);
+    const txt=document.createElement('div');txt.className='gtxt';
+    const nm=document.createElement('b');nm.textContent=fingerName(g);
+    const ks=document.createElement('span');ks.textContent=g.keys.join('');
+    txt.append(nm,ks);
+    const dn=document.createElement('span');dn.className='gdone';dn.textContent=done+'/'+g.count;
+    head.append(txt,dn);wrap.appendChild(head);
+    for(let i=g.from;i<g.from+g.count;i++)wrap.appendChild(row(i,LESSONS[i]));
+    list.appendChild(wrap);
   });
+  const lastI=LESSONS.length-1;
+  list.appendChild(row(lastI,LESSONS[lastI]));
 }
 function startLesson(i){
   const l=LESSONS[i];if(!l)return;
@@ -1227,7 +1287,7 @@ function endLesson(){
   const s2=stats(),i=R.lesson;
   const better=s2.wpm>lessonBest(i);
   if(better&&s2.acc>=80){ Records.d[lesKey(i)]=s2.wpm;Records.save(); }
-  $('#lesTitle').textContent=(i+1)+'. '+lessonName(LESSONS[i],i);
+  $('#lesTitle').textContent=(i+1)+'. '+lessonName(LESSONS[i]);
   $('#lesWpm').textContent=s2.wpm;
   $('#lesMsg').textContent=(better&&s2.acc>=80?I18N.t('drillNew')+' ':'')+I18N.t('drillRes',{w:s2.wpm,a:s2.acc});
   $('#lesNext').textContent=I18N.t(i+1<LESSONS.length?'drillNext':'drillAgain');
