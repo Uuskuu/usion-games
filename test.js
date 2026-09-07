@@ -16,6 +16,8 @@ window.Usion={config:{},
  getLaunchParams(){return {mode:'${mode}',roomId:${JSON.stringify(roomId)}}},getTheme(){return 'dark'},getLanguage(){return 'mn'},
  user:{getId(){return '${me}'},getName(){return '${name}'},getAvatar(){return null}},
  storage:{get(k){return P(mem[k]??null)},set(k,v){mem[k]=v;return P({success:true})},remove(k){delete mem[k];return P({success:true})},keys(){return P(Object.keys(mem))},clear(){return P({})}},
+ wallet:{getBalance(){return P(5000)},hasCredits(){return P(true)},onBalanceChange(){},
+   requestPayment(a,r,o){window.__calls.push(['pay',a,r,o&&o.idempotencyKey]);return P({success:true,newBalance:5000-a,receiptToken:'rt_test_1',transactionId:'tx1'})}},
  leaderboard:{submit(s,m){window.__calls.push(['submit',s,m]);return P({success:true,score:s,best:s,previous:null,rank:1,updated:true})},
    top(){return P([{user_id:'x',name:'Bat',score:500,rank:1},{user_id:'${me}',name:'${name}',score:100,rank:2,is_me:true}])},
    friends(){return P([{user_id:'${me}',name:'${name}',score:100,rank:1,is_me:true}])},me(){return P({score:100,rank:2,total:2})}},
@@ -41,12 +43,18 @@ async function newPage(browser, opts) {
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   // serve the fake SDK in place of the real one the built page loads from usions.com
+  await page.route('https://mobile.mongolai.mn/**', r => {
+    receipts.push(r.request().url());
+    return r.fulfill({ contentType: 'application/json', body: '{"outcome":"settled","status":"completed"}' });
+  });
   await page.route('https://usions.com/usion-sdk.js', r => r.fulfill({
     contentType: 'application/javascript',
     body: FAKE_SDK(opts.me, opts.name, opts.mode, opts.roomId, opts.playerIds),
   }));
   return { ctx, page, errors };
 }
+
+const receipts = [];
 
 (async () => {
   const browser = await chromium.launch();
@@ -289,6 +297,21 @@ async function newPage(browser, opts) {
     if (rows < 40) fail('tabs', 'only ' + rows + ' lesson rows');
     await page.screenshot({ path: 'shots/type-rush-12-lessons.png' });
 
+    // lesson 2 is behind the paywall, lesson 1 is not
+    if (await page.$eval('#buyBar', e => e.hidden)) fail('pay', 'unlock bar not shown to a locked user');
+    const locks = await page.$$eval('#llist .les', els => ({
+      first: els[1].classList.contains('lock'), second: els[2].classList.contains('lock'), free: els[0].classList.contains('lock'),
+    }));
+    if (locks.first) fail('pay', 'the first lesson is not free');
+    if (!locks.second || !locks.free) fail('pay', 'later lessons / free typing are not locked');
+    await page.click('#llist .les:nth-child(3)');
+    await page.waitForTimeout(250);
+    if (await page.$eval('#payOv', e => e.hidden)) fail('pay', 'locked lesson did not open the unlock sheet');
+    await page.screenshot({ path: 'shots/type-rush-15-unlock.png' });
+    await page.click('#payCancel');
+    await page.waitForTimeout(150);
+    if (await page.evaluate(() => R.lesson >= 0 && running)) fail('pay', 'cancelling still started the lesson');
+
     // lesson 1 drills exactly the two index-finger keys
     await page.click('#llist .les:not(.free)');
     await page.waitForTimeout(300);
@@ -306,6 +329,27 @@ async function newPage(browser, opts) {
     await page.click('#lesBack');
     await page.waitForTimeout(250);
     if (!(await page.$eval('#llist .les:not(.free)', e => e.classList.contains('done')))) fail('tabs', 'finished lesson not marked done');
+
+    // paying once unlocks every lesson, and the receipt is settled immediately
+    await page.click('#llist .les:nth-child(3)');
+    await page.waitForTimeout(200);
+    await page.click('#payGo');
+    await page.waitForTimeout(700);
+    const paid = await page.evaluate(() => ({
+      pro, calls: window.__calls.filter(c => c[0] === 'pay'), lesson: R.lesson, stored: null,
+    }));
+    if (!paid.pro) fail('pay', 'unlock flag not set after payment');
+    if (paid.calls.length !== 1 || paid.calls[0][1] !== 1000) fail('pay', 'wallet charge was ' + JSON.stringify(paid.calls));
+    if (!paid.calls[0][3]) fail('pay', 'no idempotency key on the charge');
+    if (paid.lesson !== 1) fail('pay', 'the lesson the user wanted did not start (lesson=' + paid.lesson + ')');
+    if (!receipts.some(u => u.endsWith('/wallet/receipt/settle'))) fail('pay', 'receipt was never settled');
+    const leftover = await page.evaluate(() => Usion.storage.get('type-rush:receipt'));
+    if (leftover) fail('pay', 'settled receipt still pending in storage');
+    await page.evaluate(() => showLessons());
+    await page.waitForTimeout(200);
+    const afterPay = await page.$$eval('#llist .les', els => els.filter(e => e.classList.contains('lock')).length);
+    if (afterPay) fail('pay', afterPay + ' rows still locked after paying');
+    if (!(await page.$eval('#buyBar', e => e.hidden))) fail('pay', 'unlock bar still shown after paying');
 
     // switching the course language switches the alphabet being drilled
     await page.click('#lesLang .chip[data-tl="en"]');

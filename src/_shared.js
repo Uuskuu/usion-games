@@ -28,6 +28,8 @@
       onSync:noop, onError:noop, onDisconnect:noop, onReconnect:noop, onReconnected:noop,
       onConnectionState:noop, onPlayerConnection:noop, onGameFinished:noop, onStateUpdate:noop
     },
+    wallet:{ getBalance(){return P(0);}, hasCredits(){return P(false);},
+      requestPayment(){return P({success:false,reason:'offline'});}, onBalanceChange:noop },
     share:noop, claimBackButton:noop, releaseBackButton:noop, exit:noop, log:noop, setLoading:noop
   };
 })();

@@ -218,6 +218,25 @@ body{
 .lkeys{font-size:13px;font-weight:800;color:var(--muted);letter-spacing:3px;flex:none}
 .lbest{font-size:11px;font-weight:800;color:var(--ok);font-variant-numeric:tabular-nums;flex:none}
 
+/* ---- unlock / paywall ---- */
+.payrow{display:flex;align-items:center;gap:11px;padding:12px;margin:4px 0 6px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);text-align:left}
+.payico{width:42px;height:42px;border-radius:12px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:21px;flex:none}
+.paytxt{flex:1;min-width:0}
+.paytxt b{display:block;font-size:14px;font-weight:800}
+.paytxt span{font-size:12px;color:var(--muted)}
+.payprice{font-size:15px;font-weight:800;color:var(--warn);white-space:nowrap}
+.paynote{font-size:11px!important;color:var(--muted);margin:12px 0 0!important;line-height:1.4}
+.btn.buy{background:var(--warn);border-color:var(--warn);color:#1a1200}
+.buybar{
+  display:flex;align-items:center;gap:9px;width:100%;margin-bottom:8px;padding:11px 12px;flex:none;
+  background:var(--card);border:1px solid var(--warn);border-radius:14px;color:var(--fg);
+  font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;text-align:left;
+}
+.buybar .bbtxt{flex:1}
+.buybar .bbprice{color:var(--warn);font-weight:800}
+.les.lock{opacity:.62}
+.lfree{font-size:9px;font-weight:800;letter-spacing:.6px;color:var(--ok);border:1px solid var(--ok);border-radius:6px;padding:2px 5px;flex:none}
+
 /* ---- bottom tabs (app shell: stays above the overlays) ---- */
 .tabs{
   position:relative;z-index:80;display:flex;gap:6px;flex:none;background:var(--bg);
@@ -365,6 +384,7 @@ body{
        <button class="chip" data-tl="en">EN</button>
      </div>
    </div>
+   <button class="buybar" id="buyBar" hidden><span>🔓</span><span class="bbtxt"></span><span class="bbprice"></span></button>
    <div class="llist" id="llist"></div>
  </div>
 </div>
@@ -434,6 +454,20 @@ body{
   </div>
 </div>
 
+<div class="overlay" id="payOv" hidden>
+  <div class="panel">
+    <h2 data-i18n="payTitle"></h2>
+    <p data-i18n="paySub"></p>
+    <div class="payrow">
+      <span class="payico">⌨️</span>
+      <div class="paytxt"><b data-i18n="drillTitle"></b><span id="payCount"></span></div>
+      <span class="payprice" id="payPrice"></span>
+    </div>
+    <div class="row"><button class="btn sec" id="payCancel" data-i18n="payCancel"></button><button class="btn buy" id="payGo"></button></div>
+    <p class="paynote" data-i18n="payNote"></p>
+  </div>
+</div>
+
 <div class="overlay" id="lesOv" hidden>
   <div class="panel">
     <h2 id="lesTitle"></h2>
@@ -482,6 +516,8 @@ body{
       onSync:noop, onError:noop, onDisconnect:noop, onReconnect:noop, onReconnected:noop,
       onConnectionState:noop, onPlayerConnection:noop, onGameFinished:noop, onStateUpdate:noop
     },
+    wallet:{ getBalance(){return P(0);}, hasCredits(){return P(false);},
+      requestPayment(){return P({success:false,reason:'offline'});}, onBalanceChange:noop },
     share:noop, claimBackButton:noop, releaseBackButton:noop, exit:noop, log:noop, setLoading:noop
   };
 })();
@@ -707,6 +743,10 @@ I18N.register({
       drillTitle:'Гарын дасгал',drillDone:'{d}/{t} дасгал',drillFree:'Чөлөөт бичих',drillFreeSub:'Цаггүй, эцэсгүй',
       drillCaps:'том үсэг',drillReview:'Давтлага',drillText:'Эх шивэх',drillBack:'Жагсаалт',drillNext:'Дараагийн',
       drillAgain:'Дахин оролдох',drillOk:'Дасгал дууслаа',drillRes:'{w} WPM · {a}% нарийвчлал',drillNew:'🎉 Шинэ дээд WPM!',
+      payTitle:'Дасгалыг нээх',paySub:'Нэг удаа төлөөд үүрд ашиглана — Монгол, Англи хоёулангийн бүх хичээл нээгдэнэ.',
+      payCount:'{n} хичээл · МН + EN',payGo:'{p}₮-өөр нээх',payCancel:'Болих',payFree:'ҮНЭГҮЙ',
+      payBar:'Бүх хичээлийг нээх',payOk:'Нээгдлээ! 🎉',payFail:'Төлбөр амжилтгүй боллоо',
+      payReason:'Хурдан бичээч — гарын дасгал',payNote:'Төлбөр Usion хэтэвчээр дамжина. Эхний дасгал үргэлж үнэгүй.',
       recTitle:'Миний амжилтууд 🏆',recBest:'Дээд оноо',recWpm:'Дээд WPM',recAcc:'Дээд нарийвчлал',
       recRaces:'Уралдаан',recWins:'Ялалт',recSents:'Бичсэн өгүүлбэр',
       hall:'Хүлээх танхим',hallWait:'Бүгд бэлэн боллоо — эхлүүлээрэй!',hallNeed:'Найзаа урьж, бэлэн болохыг хүлээ.',
@@ -729,6 +769,10 @@ I18N.register({
       drillTitle:'Touch-typing course',drillDone:'{d}/{t} lessons',drillFree:'Free typing',drillFreeSub:'No clock, no end',
       drillCaps:'capitals',drillReview:'Review',drillText:'Free text',drillBack:'Lessons',drillNext:'Next',
       drillAgain:'Try again',drillOk:'Lesson complete',drillRes:'{w} WPM · {a}% accuracy',drillNew:'🎉 New best WPM!',
+      payTitle:'Unlock the course',paySub:'Pay once, keep it forever - every lesson in both the Mongolian and English courses.',
+      payCount:'{n} lessons · MN + EN',payGo:'Unlock for {p}₮',payCancel:'Cancel',payFree:'FREE',
+      payBar:'Unlock every lesson',payOk:'Unlocked! 🎉',payFail:'The payment did not go through',
+      payReason:'Type Rush - touch-typing course',payNote:'Paid through your Usion wallet. The first lesson is always free.',
       recTitle:'My records 🏆',recBest:'Best score',recWpm:'Best WPM',recAcc:'Best accuracy',
       recRaces:'Races',recWins:'Wins',recSents:'Sentences typed',
       hall:'Waiting hall',hallWait:'Everyone is ready — start the race!',hallNeed:'Invite a friend and wait for READY.',
@@ -1128,6 +1172,10 @@ function showLessons(){
   hideOverlays();
   $('#playview').hidden=true;$('#lessons').hidden=false;
   $$('#lesLang .chip').forEach(b=>b.classList.toggle('on',b.dataset.tl===tl));
+  const bar=$('#buyBar');
+  bar.hidden=pro;
+  bar.querySelector('.bbtxt').textContent=I18N.t('payBar');
+  bar.querySelector('.bbprice').textContent=PRICE+'₮';
   const done=LESSONS.filter((_,i)=>lessonBest(i)>0).length;
   $('#lprog').textContent=I18N.t('drillDone',{d:done,t:LESSONS.length});
   const list=$('#llist');list.innerHTML='';
@@ -1137,6 +1185,7 @@ function showLessons(){
   const fn=document.createElement('span');fn.className='lname';fn.textContent=I18N.t('drillFree');
   const fk=document.createElement('span');fk.className='lkeys';fk.textContent=I18N.t('drillFreeSub');
   fk.style.letterSpacing='0';fk.style.fontWeight='600';
+  if(!pro)free.classList.add('lock');
   free.append(fn,fk);list.appendChild(free);
   LESSONS.forEach((l,i)=>{
     const b=document.createElement('button');
@@ -1144,8 +1193,14 @@ function showLessons(){
     const num=document.createElement('span');num.className='lnum';num.textContent=i+1;
     const nm=document.createElement('span');nm.className='lname';nm.textContent=lessonName(l,i);
     const ks=document.createElement('span');ks.className='lkeys';ks.textContent=l.k==='txt'?'¶':l.keys.slice(0,4).join('');
-    const bs=document.createElement('span');bs.className='lbest';bs.textContent=lessonBest(i)?lessonBest(i)+' WPM':'';
-    b.append(num,nm,ks,bs);list.appendChild(b);
+    b.append(num,nm,ks);
+    if(lessonLocked(i)){ b.classList.add('lock');const lk=document.createElement('span');lk.className='lbest';lk.style.color='var(--muted)';lk.textContent='🔒';b.appendChild(lk); }
+    else{
+      if(!pro){ const fr=document.createElement('span');fr.className='lfree';fr.textContent=I18N.t('payFree');b.appendChild(fr); }
+      const bs=document.createElement('span');bs.className='lbest';bs.textContent=lessonBest(i)?lessonBest(i)+' WPM':'';
+      b.appendChild(bs);
+    }
+    list.appendChild(b);
   });
 }
 function startLesson(i){
@@ -1425,6 +1480,53 @@ function endRace(done){
 /* Usion.leaderboard is the record book: it holds the score record and the rank,
    and it is what Game Center and the "friend beat your record" notifications read.
    Records (storage) keeps only what one number can't: WPM, accuracy, races, wins. */
+/* The practice course is a one-off unlock. Money moves ONLY through the platform wallet;
+   the receipt is an escrow hold, so it is settled right away (instant delivery). */
+const PRICE=1000,FREE_LESSONS=1;
+let pro=false,wantLesson=null;
+function lessonLocked(i){ return !pro&&i>=FREE_LESSONS; }
+async function settleReceipt(token){
+  if(!token)return false;
+  try{
+    const r=await fetch('https://mobile.mongolai.mn/wallet/receipt/settle',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({receipt_token:token})
+    });
+    return r.ok;
+  }catch(e){ return false; }        // retried on the next launch from storage
+}
+async function loadPro(){
+  pro=!!(await Store.get('pro'));
+  const pending=await Store.get('receipt');
+  if(pending&&await settleReceipt(pending))Store.remove('receipt');
+}
+function openPay(i){
+  wantLesson=(i===undefined?null:i);
+  $('#payCount').textContent=I18N.t('payCount',{n:LESSONS.length});
+  $('#payPrice').textContent=PRICE+'₮';
+  $('#payGo').textContent=I18N.t('payGo',{p:PRICE});
+  $('#payGo').disabled=false;
+  $('#payOv').hidden=false;
+}
+async function buyPro(){
+  const btn=$('#payGo');
+  btn.disabled=true;
+  let r=null;
+  try{
+    r=await Usion.wallet.requestPayment(PRICE,I18N.t('payReason'),{idempotencyKey:'typerush-course-'+Roster.myId});
+  }catch(e){ r=null; }
+  btn.disabled=false;
+  if(!r||!r.success)return toast(I18N.t('payFail'));
+  if(r.receiptToken){                                   // escrow -> settle now, it is an instant unlock
+    Store.set('receipt',r.receiptToken);
+    if(await settleReceipt(r.receiptToken))Store.remove('receipt');
+  }
+  pro=true;Store.set('pro',1);
+  $('#payOv').hidden=true;Sfx.win();toast(I18N.t('payOk'));
+  const go=wantLesson;wantLesson=null;
+  showLessons();
+  if(go!==null){ forceKeyboard();startLesson(go); }
+}
+
 let lbMe={score:null,rank:null,total:null};
 function bestScore(){ return Math.max(Records.get('best'),lbMe.score||0); }
 async function refreshMe(){
@@ -1572,7 +1674,7 @@ async function inviteFriends(){
 }
 
 /* ---------- UI wiring ---------- */
-function hideOverlays(){ ['menuOv','endOv','hallOv','recOv','netOv','lesOv'].forEach(i=>{$('#'+i).hidden=true;}); $('#chatSheet').hidden=true; }
+function hideOverlays(){ ['menuOv','endOv','hallOv','recOv','netOv','lesOv','payOv'].forEach(i=>{$('#'+i).hidden=true;}); $('#chatSheet').hidden=true; }
 function markChips(){
   $$('#lvlChips .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
   $$('#hallLvl .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
@@ -1612,13 +1714,20 @@ $('#botsBtn').onclick=()=>{ if(isHost()){ forceKeyboard();hostStart(true); } };
 $('#tabs').onclick=e=>{ const b=e.target.closest('.tab');if(b)setTab(b.dataset.tab); };
 $('#llist').onclick=e=>{
   const b=e.target.closest('.les');if(!b)return;
-  forceKeyboard();
-  if(b.dataset.i==='free')startDrill(); else startLesson(+b.dataset.i);
+  if(b.dataset.i==='free'){ if(pro){forceKeyboard();startDrill();}else openPay(); return; }
+  const i=+b.dataset.i;
+  if(lessonLocked(i))return openPay(i);
+  forceKeyboard();startLesson(i);
 };
+$('#buyBar').onclick=()=>openPay();
+$('#payCancel').onclick=()=>{ $('#payOv').hidden=true;wantLesson=null; };
+$('#payGo').onclick=buyPro;
 $('#lesBack').onclick=()=>{ $('#lesOv').hidden=true;showLessons(); };
 $('#lesNext').onclick=()=>{
-  $('#lesOv').hidden=true;forceKeyboard();
-  startLesson(R.lesson+1<LESSONS.length?R.lesson+1:R.lesson);
+  const next=R.lesson+1<LESSONS.length?R.lesson+1:R.lesson;
+  $('#lesOv').hidden=true;
+  if(lessonLocked(next))return openPay(next);
+  forceKeyboard();startLesson(next);
 };
 $('#chatBtn').onclick=openChat;
 $('#chatSheet').onclick=e=>{ if(e.target.id==='chatSheet'){$('#chatSheet').hidden=true;focusInput();} };
@@ -1657,6 +1766,7 @@ bootApp(async (cfg)=>{
   cfg=cfg||{};
   try{ Roster.myId=Usion.user.getId()||'local_dev'; }catch(e){ Roster.myId='local_dev'; }
   await Records.load();
+  await loadPro();
   best=Records.get('best');
   refreshMe().then(()=>{ best=bestScore(); });   // non-blocking: never delay instant play
   const l=await Store.get('lvl');if(l&&LIMITS[l])lvl=+l;
