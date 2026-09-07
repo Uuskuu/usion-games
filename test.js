@@ -298,7 +298,7 @@ async function newPage(browser, opts) {
     for (let i = 0; i < les.lines; i++) { const w = await page.evaluate(() => target); await page.fill('#inp', ''); await page.type('#inp', w, { delay: 1 }); }
     await page.waitForTimeout(400);
     if (await page.$eval('#lesOv', e => e.hidden)) fail('tabs', 'lesson result did not show');
-    const lesBest = await page.evaluate(() => Records.get('les0', 0));
+    const lesBest = await page.evaluate(() => lessonBest(0));
     if (!lesBest) fail('tabs', 'lesson best WPM was not stored');
     if (await page.evaluate(() => window.__calls.some(c => c[0] === 'submit'))) fail('tabs', 'a lesson submitted a score');
     await page.screenshot({ path: 'shots/type-rush-13-lesson.png' });
@@ -306,6 +306,24 @@ async function newPage(browser, opts) {
     await page.click('#lesBack');
     await page.waitForTimeout(250);
     if (!(await page.$eval('#llist .les:not(.free)', e => e.classList.contains('done')))) fail('tabs', 'finished lesson not marked done');
+
+    // switching the course language switches the alphabet being drilled
+    await page.click('#lesLang .chip[data-tl="en"]');
+    await page.waitForTimeout(250);
+    const en = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll('#llist .les:not(.free)')];
+      return { first: rows[0].querySelector('.lkeys').textContent, count: rows.length, done: rows[0].classList.contains('done') };
+    });
+    if (en.first !== 'fj') fail('tabs', 'english course does not start on the home row: ' + en.first);
+    if (en.done) fail('tabs', 'mongolian progress leaked into the english course');
+    await page.click('#llist .les:not(.free)');
+    await page.waitForTimeout(250);
+    const enText = await page.evaluate(() => queue[0][0]);
+    if (!/^[fj ]+$/.test(enText)) fail('tabs', 'english lesson 1 drills the wrong keys: ' + enText);
+    await page.screenshot({ path: 'shots/type-rush-14-english.png' });
+    await page.evaluate(() => { setTextLang('mn'); showLessons(); });
+    await page.waitForTimeout(250);
+    if (!(await page.$eval('#llist .les:not(.free)', e => e.classList.contains('done')))) fail('tabs', 'mongolian progress lost after switching back');
 
     // free typing: untimed and endless
     await page.click('#llist .les.free');

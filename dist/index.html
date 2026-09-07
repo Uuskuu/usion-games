@@ -199,9 +199,11 @@ body{
 
 /* ---- lesson list ---- */
 .lessons{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
-.lhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px;flex:none}
+.lhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex:none}
 .ltitle{font-size:17px;font-weight:800;letter-spacing:-.3px}
-.lsub{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+.lsub{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;margin-top:2px}
+.chips.lang{margin:0;gap:4px;flex:none}
+.chips.lang .chip{padding:6px 11px;font-size:11px}
 .llist{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px;padding-bottom:4px}
 .les{
   display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;text-align:left;
@@ -356,7 +358,13 @@ body{
   </div>
  </div>
  <div class="lessons" id="lessons" hidden>
-   <div class="lhead"><div class="ltitle" data-i18n="drillTitle"></div><div class="lsub" id="lprog"></div></div>
+   <div class="lhead">
+     <div><div class="ltitle" data-i18n="drillTitle"></div><div class="lsub" id="lprog"></div></div>
+     <div class="chips lang" id="lesLang">
+       <button class="chip on" data-tl="mn">МН</button>
+       <button class="chip" data-tl="en">EN</button>
+     </div>
+   </div>
    <div class="llist" id="llist"></div>
  </div>
 </div>
@@ -861,23 +869,36 @@ const TEXTS={
 };
 /* Mongolian keyboard, taught the way a touch-typing course does: index fingers first,
    then middle, ring and little fingers, row by row — the same order as blesson.mn/Computer. */
-const KEYPAIRS=[
-  ['ө','р'],['б','о'],['ы','л'],['а','х'],          // home row: F J, D K, S L, G H
-  ['ж','г'],['у','ш'],['ц','ү'],['ф','з'],['э','н'],// upper row: R U, E I, W O, Q P, T Y
-  ['с','т'],['ё','ь'],['ч','в'],['я','ю'],['м','и'],// lower row: V M, C comma, X dot, Z slash, B N
-  ['п','к'],['е','щ']                               // right little finger + number row
-];
-const SYMROWS=[[':','.','5','6'],['₮','_','4','7'],['"',',','3','8'],['-','%','2','9'],['№','?','1','0']];
+const COURSE={
+  mn:{
+    pairs:[
+      ['ө','р'],['б','о'],['ы','л'],['а','х'],           // home row: F J, D K, S L, G H
+      ['ж','г'],['у','ш'],['ц','ү'],['ф','з'],['э','н'], // upper row: R U, E I, W O, Q P, T Y
+      ['с','т'],['ё','ь'],['ч','в'],['я','ю'],['м','и'], // lower row: V M, C comma, X dot, Z slash, B N
+      ['п','к'],['е','щ']                                // right little finger + number row
+    ],
+    syms:[[':','.','5','6'],['₮','_','4','7'],['"',',','3','8'],['-','%','2','9'],['№','?','1','0']]
+  },
+  en:{
+    pairs:[
+      ['f','j'],['d','k'],['s','l'],['a',';'],['g','h'], // home row, index outwards
+      ['r','u'],['e','i'],['w','o'],['q','p'],['t','y'], // upper row
+      ['v','m'],['c',','],['x','.'],['z','/'],['b','n']  // lower row
+    ],
+    syms:[[':',';','5','6'],['$','_','4','7'],['"','\'','3','8'],['-','%','2','9'],['#','?','1','0']]
+  }
+};
 let LESSONS=[];
-function buildLessons(){
+function buildLessons(lang){
+  const c=COURSE[lang]||COURSE.mn;
   const out=[];let learned=[];
-  KEYPAIRS.forEach((pair,i)=>{
+  c.pairs.forEach((pair,i)=>{
     learned=learned.concat(pair);
     out.push({k:'let',keys:pair.slice(),pool:learned.slice(),caps:false});
     out.push({k:'let',keys:pair.slice(),pool:learned.slice(),caps:true});
     if(i%2===1)out.push({k:'rev',keys:learned.slice(-4),pool:learned.slice(),caps:false});
   });
-  SYMROWS.forEach(r=>out.push({k:'sym',keys:r.slice(),pool:r.slice(),caps:false}));
+  c.syms.forEach(r=>out.push({k:'sym',keys:r.slice(),pool:r.slice(),caps:false}));
   out.push({k:'txt',keys:[],pool:[],caps:false});
   return out;
 }
@@ -977,7 +998,7 @@ function fitText(){
 function load(){
   const q=queue[idx];target=q[0];$('#author').textContent=q[1]&&q[1]!=='—'?'— '+q[1]:'';
   inp.value='';inp._last='';render();
-  $('#prog').textContent=R.drill?I18N.t('drillCount',{n:finished}):I18N.t('sent',{i:idx+1,t:R.sents});
+  $('#prog').textContent=(R.drill&&R.endless)?I18N.t('drillCount',{n:finished}):I18N.t('sent',{i:idx+1,t:R.sents});
   paintDots();fitText();
 }
 function stats(){
@@ -1053,7 +1074,7 @@ function startRound(cfg){
   queue=cfg.queue;R.sents=queue.length;R.cum=[0];queue.forEach(q=>R.cum.push(R.cum[R.cum.length-1]+q[0].length));
   idx=0;typedChars=0;correctChars=0;errors=0;score=0;finished=0;timeLeft=R.drill?0:cfg.limit;
   hideOverlays();$('#track').hidden=!R.seats.length;$('#tbarw').className='timerbar';
-  $('#tbarw').hidden=R.drill;$('#dots').hidden=R.drill;paintTabs();
+  $('#tbarw').hidden=R.drill;$('#dots').hidden=R.drill&&R.endless;paintTabs();
   inp.disabled=false;load();stats();$('#time').textContent=fmtTime(timeLeft);$('#tbar').style.width='100%';
   startT=performance.now();running=true;phase='race';
   clearInterval(timer);let last=performance.now();
@@ -1100,11 +1121,13 @@ function startDrill(){
 function startCurrent(){ tab==='drill'?showLessons():startSolo(); }
 
 /* ---------- the course ---------- */
-function lessonBest(i){ return Records.get('les'+i,0); }
+function lesKey(i){ return 'les'+tl+i; }                 // each course keeps its own progress
+function lessonBest(i){ return Records.get(lesKey(i),0); }
 function showLessons(){
   clearInterval(timer);stopNetLoops();running=false;phase='end';
   hideOverlays();
   $('#playview').hidden=true;$('#lessons').hidden=false;
+  $$('#lesLang .chip').forEach(b=>b.classList.toggle('on',b.dataset.tl===tl));
   const done=LESSONS.filter((_,i)=>lessonBest(i)>0).length;
   $('#lprog').textContent=I18N.t('drillDone',{d:done,t:LESSONS.length});
   const list=$('#llist');list.innerHTML='';
@@ -1136,7 +1159,7 @@ function endLesson(){
   clearInterval(timer);clearInterval(R.loop);running=false;inp.disabled=true;inp.blur();phase='end';
   const s2=stats(),i=R.lesson;
   const better=s2.wpm>lessonBest(i);
-  if(better&&s2.acc>=80)Records.d['les'+i]=s2.wpm,Records.save();
+  if(better&&s2.acc>=80){ Records.d[lesKey(i)]=s2.wpm;Records.save(); }
   $('#lesTitle').textContent=(i+1)+'. '+lessonName(LESSONS[i],i);
   $('#lesWpm').textContent=s2.wpm;
   $('#lesMsg').textContent=(better&&s2.acc>=80?I18N.t('drillNew')+' ':'')+I18N.t('drillRes',{w:s2.wpm,a:s2.acc});
@@ -1216,7 +1239,7 @@ function onRealtime(m){
     if(id===Roster.myId)return;
     Roster.see(id);
     Roster.set(id,{name:String(d.name||'').slice(0,24),avatar:d.avatar||null,ready:!!d.ready});
-    if(id===Roster.hostId()){ if(LIMITS[d.lvl])lvl=+d.lvl; if(d.tl==='en'||d.tl==='mn')tl=d.tl; markChips(); }
+    if(id===Roster.hostId()){ if(LIMITS[d.lvl])lvl=+d.lvl; if(d.tl==='en'||d.tl==='mn'){tl=d.tl;LESSONS=buildLessons(tl);} markChips(); }
     paintHall();
     if(isHost())rt('player_info',myInfo());          // late joiner missed everyone's earlier info
     return;
@@ -1311,7 +1334,7 @@ function applyRaceStart(d){
   });
   R.seats.forEach(id=>{ R.prog[id]={f:0,w:0,s:0,d:0,gone:false}; });
   if(LIMITS[d.lvl])lvl=+d.lvl;
-  if(d.tl==='en'||d.tl==='mn')tl=d.tl;
+  if(d.tl==='en'||d.tl==='mn'){ tl=d.tl;LESSONS=buildLessons(tl); }
   markChips();hideOverlays();
   countdown(()=>{
     startRound({queue:seededQueue(d.seed,tl,lvl,d.sents||sentsFor(lvl)),limit:d.limit||LIMITS[lvl],lvl,tl,seed:d.seed,mp:true});
@@ -1554,6 +1577,14 @@ function markChips(){
   $$('#lvlChips .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
   $$('#hallLvl .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
   $$('#tlChips .chip').forEach(c=>c.classList.toggle('on',c.dataset.tl===tl));
+  $$('#lesLang .chip').forEach(c=>c.classList.toggle('on',c.dataset.tl===tl));
+}
+function setTextLang(v){
+  if(v!=='en'&&v!=='mn')return;
+  tl=v;Store.set('tl',tl);markChips();
+  LESSONS=buildLessons(tl);                              // the drills follow the keyboard you type on
+  if(!$('#lessons').hidden)showLessons();
+  if(phase==='hall')shareInfo();
 }
 function pickLvl(v){ lvl=+v;Store.set('lvl',lvl);markChips();if(phase==='hall')shareInfo(); }
 function openMenu(){ clearInterval(timer);stopNetLoops();running=false;phase='end';hideOverlays();$('#menuOv').hidden=false; }
@@ -1563,7 +1594,8 @@ function openRecords(){
 }
 $('#lvlChips').onclick=e=>{ const c=e.target.closest('.chip');if(c)pickLvl(c.dataset.lvl); };
 $('#hallLvl').onclick=e=>{ const c=e.target.closest('.chip');if(c&&isHost())pickLvl(c.dataset.lvl); };
-$('#tlChips').onclick=e=>{ const c=e.target.closest('.chip');if(!c)return;tl=c.dataset.tl;Store.set('tl',tl);markChips();if(phase==='hall')shareInfo(); };
+$('#tlChips').onclick=e=>{ const c=e.target.closest('.chip');if(c)setTextLang(c.dataset.tl); };
+$('#lesLang').onclick=e=>{ const c=e.target.closest('.chip');if(c)setTextLang(c.dataset.tl); };
 $('#menuStart').onclick=()=>{ forceKeyboard();startCurrent(); };
 $('#setBtn').onclick=openMenu;
 $('#menuBtn2').onclick=openMenu;
@@ -1630,7 +1662,7 @@ bootApp(async (cfg)=>{
   const l=await Store.get('lvl');if(l&&LIMITS[l])lvl=+l;
   const t=await Store.get('tl');tl=(t==='en'||t==='mn')?t:I18N.lang;
   const tb=await Store.get('tab');if(tb==='drill'||tb==='race')tab=tb;
-  LESSONS=buildLessons();
+  LESSONS=buildLessons(tl);
   paintTabs();
   markChips();
   Roster.reset(cfg.playerIds&&cfg.playerIds.length?cfg.playerIds:[Roster.myId],Roster.myId);

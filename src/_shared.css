@@ -191,9 +191,11 @@ body{
 
 /* ---- lesson list ---- */
 .lessons{flex:1;display:flex;flex-direction:column;width:100%;min-height:0}
-.lhead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px;flex:none}
+.lhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex:none}
 .ltitle{font-size:17px;font-weight:800;letter-spacing:-.3px}
-.lsub{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+.lsub{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;margin-top:2px}
+.chips.lang{margin:0;gap:4px;flex:none}
+.chips.lang .chip{padding:6px 11px;font-size:11px}
 .llist{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:6px;padding-bottom:4px}
 .les{
   display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;text-align:left;
