@@ -253,7 +253,8 @@ const receipts = [];
     const mix = await page.evaluate(() => ({
       limit: R.limit, n: R.sents, pattern: MIX.slice(),
       // which pool each queued sentence actually came from
-      levels: queue.map(q => [1, 2, 3].find(l => TEXTS[tl][l].some(x => x[0] === q[0]))),
+      levels: queue.map(q => Object.keys(TEXTS[tl]).map(Number).find(l => TEXTS[tl][l].some(x => x[0] === q[0]))),
+      tiers: MIX.map(l => I18N.t('d' + l)),
       lens: queue.map(q => q[0].length),
       dupes: queue.length - new Set(queue.map(q => q[0])).size,
     }));
@@ -263,6 +264,8 @@ const receipts = [];
     if (mix.dupes) fail('mix', 'the same sentence appeared twice in one round');
     if (mix.lens[4] > 45) fail('mix', 'the symbol-heavy sentence is not short: ' + mix.lens[4]);
     if (mix.lens[0] < 45) fail('mix', 'the opening sentence is not a long one: ' + mix.lens[0]);
+    const label = await page.$eval('#prog', e => e.textContent);
+    if (!label.includes(mix.tiers[0])) fail('mix', 'the counter does not name the tier: ' + label);
     // no level picker anywhere any more
     await page.evaluate(() => openMenu());
     await page.waitForTimeout(200);
@@ -301,7 +304,7 @@ const receipts = [];
     if (lowerAcc !== 100) fail('mix', 'lower-case typing scored ' + lowerAcc + '% (missed Shift should not count)');
     if (await page.$eval('#endOv', e => e.hidden)) fail('mix', 'lower-case round did not finish');
     if (errors.length) fail('mix', 'console: ' + errors.join(' | ').slice(0, 300));
-    if (failures === before) ok('difficulty mix', `120s, levels ${mix.levels.join('-')}, lengths ${mix.lens.join('/')}`);
+    if (failures === before) ok('difficulty mix', `120s, ${mix.tiers.join(' > ')}, lengths ${mix.lens.join('/')}`);
     await ctx.close();
   }
 

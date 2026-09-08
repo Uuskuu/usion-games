@@ -786,11 +786,11 @@ document.addEventListener('touchmove', e => { if (e.target.closest && e.target.c
 <script>
 I18N.register({
   mn:{title:'Хурдан бичээч',acc:'Нарийвчлал',time:'Цаг',start:'Эхлэх',again:'Дахин',settings:'Тохиргоо',close:'Хаах',
-      rules:'120 секундэд аль болох хурдан, зөв бич. Раунд бүр 5 өгүүлбэр: хоёр урт, хоёр дунд, нэг тэмдэгт ихтэй богино.',
+      rules:'120 секундэд аль болох хурдан, зөв бич. Раунд бүр 5 өгүүлбэр, хүндрэл нь ахисаар явна: Хялбар, Дунд, Ахисан, Хүндэвтэр, Хүнд.',
       tapHint:'Дарж бичиж эхлээрэй',
       done:'Дууслаа! 🏁',timeUp:'Цаг дууслаа ⏱',
       result:'{w} WPM · {a}% нарийвчлал · {n}/{t} өгүүлбэр',newBest:'🎉 Шинэ дээд амжилт!',
-      sent:'Өгүүлбэр {i}/{t}',score:'оноо',ghost:'Рекорд',
+      sent:'Өгүүлбэр {i}/{t}',d1:'Хялбар',d2:'Дунд',d3:'Ахисан',d4:'Хүндэвтэр',d5:'Хүнд',score:'оноо',ghost:'Рекорд',
       tabRace:'Уралдах',tabDrill:'Дасгал',drillCount:'Бичсэн: {n}',drillHint:'Цаггүй дасгал — оноо тооцохгүй',
       drillTitle:'Гарын дасгал',drillDone:'{d}/{t} дасгал',drillFree:'Чөлөөт бичих',drillFreeSub:'Цаггүй, эцэсгүй',
       drillCaps:'том үсэг',drillReview:'Давтлага',drillText:'Эх шивэх',
@@ -813,11 +813,11 @@ I18N.register({
       chatPh:'Өөрийн үгээ бич…',invited:'Урилга илгээлээ',inviteFail:'Урих боломжгүй байна',
       joinedMsg:'{n} нэгдлээ',leftMsg:'{n} гарлаа',go:'ЭХЭЛ!',rush:'Эхнийх нь дууслаа — {n}с!'},
   en:{title:'Type Rush',acc:'Accuracy',time:'Time',start:'Start',again:'Play again',settings:'Settings',close:'Close',
-      rules:'Type as fast and accurately as you can in 120 seconds. Every round is five sentences: two long, two medium, one short and symbol heavy.',
+      rules:'Type as fast and accurately as you can in 120 seconds. Each round is five sentences that get harder: Easy, Medium, Advanced, Harder, Hard.',
       tapHint:'Tap here to start typing',
       done:'Finished! 🏁',timeUp:"Time's up ⏱",
       result:'{w} WPM · {a}% accuracy · {n}/{t} sentences',newBest:'🎉 New best score!',
-      sent:'Sentence {i}/{t}',score:'points',ghost:'Record',
+      sent:'Sentence {i}/{t}',d1:'Easy',d2:'Medium',d3:'Advanced',d4:'Harder',d5:'Hard',score:'points',ghost:'Record',
       tabRace:'Race',tabDrill:'Practice',drillCount:'Typed: {n}',drillHint:'Untimed practice - nothing is scored',
       drillTitle:'Touch-typing course',drillDone:'{d}/{t} lessons',drillFree:'Free typing',drillFreeSub:'No clock, no end',
       drillCaps:'capitals',drillReview:'Review',drillText:'Free text',
@@ -847,10 +847,12 @@ const PHRASES={
 const BOTS=[['Бат',52],['Сараа',68],['Дорж',44],['Оюун',75]];
 const CARS=['🚗','🚙','🏎️','🚕','🚓','🛻'];
 
-// [text, source] — difficulty is punctuation density, not length:
-//   1 easy   long sentences, almost no punctuation
-//   2 medium ordinary sentences with commas and periods
-//   3 hard   short sentences packed with symbols, digits and brackets
+// [text, source] — five tiers, from plain words to dense symbols:
+//   1 easy      long sentences, no punctuation at all
+//   2 medium    ordinary commas and a full stop
+//   3 advanced  colons, semicolons and quotes inside longer sentences
+//   4 harder    everyday text carrying numbers and units
+//   5 hard      short sentences packed with digits, brackets and symbols
 const TEXTS={
   mn:{1:[
     ['Өнөөдөр тэнгэр цэлмэг байгаа тул бид уулын бэлээр удаан алхаж болно','—'],
@@ -931,6 +933,48 @@ const TEXTS={
     ['Явж байгаа замаа мэдэхгүй бол, ямар ч салхи тус болохгүй.','—'],
     ['Өнөөдрийн жижиг алхам, маргаашийн том үр дүн болдог.','—']],
     3:[
+    ['Багш маань: "Алдаа бол сурахуйн нэг хэсэг", гэж хэлээд инээмсэглэв.','—'],
+    ['Өглөө эрт босч, цайгаа уугаад, номоо уншиж эхлэх нь миний хэвшил.','—'],
+    ['Хот дотор гурван зүйл хэрэгтэй: тэвчээр, цаг, мөн сайхан сэтгэл.','—'],
+    ['Тэр удаан бодсоны эцэст: "Би оролдож үзье", гэж шийдсэн юм.','—'],
+    ['Ном унших, зураг зурах, хөгжим сонсох; энэ гурав миний амралт.','—'],
+    ['Хэдийгээр цаг агаар хүйтэн байсан ч, бид төлөвлөсөн газраа явлаа.','—'],
+    ['Аав: "Хийж чадна", ээж: "Тэвчээртэй бай", гэж хоёул дэмжсэн.','—'],
+    ['Ажил, гэр бүл, эрүүл мэнд: энэ гурвыг тэнцвэртэй байлгах хэрэгтэй.','—'],
+    ['Бид уулзаж, ярилцаж, санал бодлоо солилцсоны дараа шийдвэрээ гаргав.','—'],
+    ['Түүний хариулт богино байлаа: "Маргааш ирнэ", гэсэн ганц өгүүлбэр.','—'],
+    ['Хаврын салхи, зуны бороо, намрын навч; улирал бүр өөрийн гоо сайхантай.','—'],
+    ['Хэрэв цаг гарвал уулзъя; үгүй бол утсаар ярьж ч болно шүү дээ.','—'],
+    ['Сургуулиа төгсөөд, ажилд орж, дараа нь гадаадад сурахаар шийдсэн.','—'],
+    ['Тэр асуув: "Чи яагаад ингэж бодов?", би удаан хариулж чадаагүй.','—'],
+    ['Хамгийн чухал нь: эхлэх, тууштай байх, мөн эцэст нь дуусгах явдал.','—'],
+    ['Бороо орж, зам норж, гэрэл унтарсан ч, бид ажлаа үргэлжлүүлсэн.','—'],
+    ['Түүхэн ном, шинжлэх ухааны сэтгүүл, богино өгүүллэг: бүгд таалагддаг.','—'],
+    ['Нэг зүйл ойлгомжтой: хичээхгүй бол, юу ч өөрчлөгдөхгүй.','—'],
+    ['Найз маань "баярлалаа" гэж хэлээд, гараа сунган, инээмсэглэн явлаа.','—'],
+    ['Эрт босох, сайн унтах, зөв хооллох; энгийн боловч хэцүү гурван зүйл.','—']],
+    4:[
+    ['Хурал 3-р сарын 14-нд, 09:30 цагт эхэлнэ.','—'],
+    ['Ангид 24 сурагч байсны 18 нь шалгалтад тэнцлээ.','—'],
+    ['Дэлгүүр 08:00-22:00 цагт ажиллана, амралтын өдөр ч нээлттэй.','—'],
+    ['Автобус №15 нь 12 минут тутам ирдэг гэсэн.','—'],
+    ['Тэр 2 цагийн турш 5 км гүйж, 400 калори зарцуулав.','—'],
+    ['Номын 3-р бүлгийн 45-р хуудсыг уншаад ирээрэй.','—'],
+    ['Энэ жил 12 ном уншихаар зорьсны 7 нь дууссан.','—'],
+    ['Байрны түрээс сард 800,000 төгрөг, ус тусдаа.','—'],
+    ['Багц 4 ширхэгтэй, нэг нь 2,500 төгрөг болно.','—'],
+    ['Онгоц 14:20-д хөөрч, 16:45-д газардах ёстой.','—'],
+    ['2026 онд манай баг 3 удаа түрүүлсэн байна.','—'],
+    ['Даалгаврыг 5 хоногийн дотор, 2 хэсэгт хуваан хий.','—'],
+    ['Ажилтны 60% нь гэрээсээ ажилладаг гэж судалгаа гарлаа.','—'],
+    ['Хоолны жор: 2 өндөг, 200 гр гурил, 1 халбага давс.','—'],
+    ['Гэрээ 12 сарын хугацаатай, сунгах боломжтой.','—'],
+    ['Замын хурд 60 км/ц, хотод 40 км/ц байх ёстой.','—'],
+    ['Бид 7:00 цагт уулзаж, 8-р автобусаар явцгаая.','—'],
+    ['Сургалт 6 долоо хоног үргэлжилж, 18 хичээлтэй.','—'],
+    ['Утасны цэнэг 20% болсон тул цэнэглэгч хэрэгтэй.','—'],
+    ['Тайланг 3 хувь хэвлээд, 2-ыг архивт өг.','—']],
+    5:[
     ['Тэр "За, за!" гэж хэлээд гарлаа.','—'],
     ['Утас: +976-9911-2233 (ажлын).','—'],
     ['Үнэ: 12,500 төг. (-15% хямдрал!)','—'],
@@ -1048,6 +1092,48 @@ const TEXTS={
     ['Measure twice, cut once; the saw does not forgive guesses.','—'],
     ['Finish one thing, then start the next; two halves are worth nothing.','—']],
     3:[
+    ['The teacher smiled and said: "A mistake is simply a lesson in disguise".','—'],
+    ['Wake up early, drink some water, and read a page; that is the whole routine.','—'],
+    ['Three things matter in a city: patience, timing, and a friendly neighbour.','—'],
+    ['After a long pause he decided: "I will try once more, properly this time".','—'],
+    ['Reading, drawing, walking; these three fill almost every quiet evening.','—'],
+    ['Although the weather turned cold, we packed the car and drove out anyway.','—'],
+    ['She asked: "Why did you think that?", and I could not answer for a while.','—'],
+    ['Work, family, health: keeping all three in balance is the real skill.','—'],
+    ['We met, we argued, we agreed; the whole thing took less than an hour.','—'],
+    ['His reply was short: "Tomorrow", and nothing else needed to be said.','—'],
+    ['Spring wind, summer rain, autumn leaves; every season brings its own gift.','—'],
+    ['If you have time, come over; if not, a phone call will do just as well.','—'],
+    ['She finished school, found a job, and then decided to study abroad.','—'],
+    ['One thing is clear: without effort, nothing in this plan will change.','—'],
+    ['My friend said "thank you", shook my hand, and walked into the rain.','—'],
+    ['Sleep well, eat properly, move often; simple rules that are hard to keep.','—'],
+    ['History books, science magazines, short stories: I read all of them.','—'],
+    ['The road was wet, the lights were out, and still we kept on working.','—'],
+    ['He wrote three words on the board: begin, continue, finish.','—'],
+    ['It rained all night; by morning the whole street looked completely new.','—']],
+    4:[
+    ['The meeting starts on March 14, at 09:30 sharp.','—'],
+    ['Of the 24 students in class, 18 passed the exam.','—'],
+    ['The shop opens 08:00-22:00, weekends included.','—'],
+    ['Bus 15 arrives every 12 minutes, more or less.','—'],
+    ['He ran 5 km in 2 hours and burned 400 calories.','—'],
+    ['Please read page 45 of chapter 3 before Friday.','—'],
+    ['I planned 12 books this year and finished 7 so far.','—'],
+    ['The rent is 800,000 a month, water not included.','—'],
+    ['A pack holds 4 items, so each one costs 2,500.','—'],
+    ['The plane leaves at 14:20 and lands at 16:45.','—'],
+    ['In 2026 our team won the tournament 3 times.','—'],
+    ['Split the task into 2 parts and finish in 5 days.','—'],
+    ['A survey found that 60% of staff work from home.','—'],
+    ['Recipe: 2 eggs, 200 g of flour, 1 spoon of salt.','—'],
+    ['The contract runs 12 months and can be extended.','—'],
+    ['Speed limit is 60 km/h, and 40 km/h in the city.','—'],
+    ['Let us meet at 7:00 and take the number 8 bus.','—'],
+    ['The course lasts 6 weeks and has 18 lessons.','—'],
+    ['The battery is at 20%, so bring a charger along.','—'],
+    ['Print 3 copies of the report and archive 2.','—']],
+    5:[
     ['Email: dev@usion.mn (24/7 support)','—'],
     ['Price: $12.50 - 15% = $10.63!','—'],
     ['Code: if (x > 0) { return x * 2; }','—'],
@@ -1190,13 +1276,13 @@ function lessonQueue(l){
   if(l.k==='txt')return pickFresh(tl,2,2);
   return [drillLine(l),drillLine(l),drillLine(l)];
 }
-/* One round: 120 seconds, five sentences, difficulty mixed the same way every time so
-   scores stay comparable — two easy, two medium, one hard. */
-const LIMIT=120,MIX=[1,1,2,2,3],SENTS=MIX.length,MAXW=250,GRACE=10;  // GRACE: seconds the rest get once someone finishes
+/* One round: 120 seconds and five sentences that climb through the five tiers, the same
+   way every time, so scores stay comparable. */
+const LIMIT=120,MIX=[1,2,3,4,5],SENTS=MIX.length,MAXW=250,GRACE=10;  // GRACE: seconds the rest get once someone finishes
 let tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0,best=0;
 let phase='boot';                       // 'solo' | 'hall' | 'race' | 'end'
 let joinedRoom=null,myReady=false,paintQ=false,overtime=0,tab='race';
-const R={seed:0,pending:0,mp:false,drill:false,endless:false,lesson:-1,sents:SENTS,limit:LIMIT,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
+const R={seed:0,pending:0,mp:false,drill:false,endless:false,lesson:-1,sents:SENTS,mix:MIX.slice(),limit:LIMIT,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
 const inp=$('#inp'),box=$('#typebox');
 
 /* ---------- guarded SDK calls (written literally so the publish pipeline detects multiplayer) ---------- */
@@ -1281,7 +1367,8 @@ function fitText(){
 function load(){
   const q=queue[idx];target=q[0];$('#author').textContent=q[1]&&q[1]!=='—'?'— '+q[1]:'';
   inp.value='';inp._last='';render();
-  $('#prog').textContent=(R.drill&&R.endless)?I18N.t('drillCount',{n:finished}):I18N.t('sent',{i:idx+1,t:R.sents});
+  const tier=(!R.drill&&R.mix[idx])?' · '+I18N.t('d'+R.mix[idx]):'';
+  $('#prog').textContent=(R.drill&&R.endless)?I18N.t('drillCount',{n:finished}):I18N.t('sent',{i:idx+1,t:R.sents})+tier;
   paintDots();fitText();
 }
 function stats(){
@@ -1351,7 +1438,7 @@ function forceKeyboard(){
 }
 
 function startRound(cfg){
-  R.limit=cfg.limit;R.tl=cfg.tl;R.seed=cfg.seed;R.mp=!!cfg.mp;R.drill=!!cfg.drill;
+  R.limit=cfg.limit;R.tl=cfg.tl;R.mix=(cfg.mix||MIX).slice();R.seed=cfg.seed;R.mp=!!cfg.mp;R.drill=!!cfg.drill;
   R.endless=!!cfg.endless;R.lesson=cfg.lesson===undefined?-1:cfg.lesson;
   R.ended=false;R.hostT=null;overtime=0;
   queue=cfg.queue;R.sents=queue.length;R.cum=[0];queue.forEach(q=>R.cum.push(R.cum[R.cum.length-1]+q[0].length));
@@ -1681,7 +1768,7 @@ function applyRaceStart(d){
   if(d.tl==='en'||d.tl==='mn'){ tl=d.tl;LESSONS=buildLessons(tl); }
   hideOverlays();
   countdown(()=>{
-    startRound({queue:seededQueue(d.seed,tl,d.mix),limit:d.limit||LIMIT,tl,seed:d.seed,mp:true});
+    startRound({queue:seededQueue(d.seed,tl,d.mix),limit:d.limit||LIMIT,mix:d.mix,tl,seed:d.seed,mp:true});
     R.sendT=setInterval(sendMine,100);
     paintTrack();updateChatBtn();
   });
