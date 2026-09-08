@@ -28,6 +28,8 @@
       onSync:noop, onError:noop, onDisconnect:noop, onReconnect:noop, onReconnected:noop,
       onConnectionState:noop, onPlayerConnection:noop, onGameFinished:noop, onStateUpdate:noop
     },
+    cloud:{ get(k){return P(mem['c:'+k]===undefined?null:mem['c:'+k]);}, set(k,v){mem['c:'+k]=v;return P({success:true});},
+      remove(k){delete mem['c:'+k];return P({success:true});}, keys(){return P([]);} },
     wallet:{ getBalance(){return P(0);}, hasCredits(){return P(false);},
       requestPayment(){return P({success:false,reason:'offline'});}, onBalanceChange:noop },
     share:noop, claimBackButton:noop, releaseBackButton:noop, exit:noop, log:noop, setLoading:noop
@@ -53,12 +55,56 @@ const I18N = (() => {
   return { t, apply, set, toggle, get lang() { return lang; }, register(d) { for (const l in d) dict[l] = Object.assign(dict[l] || {}, d[l]); } };
 })();
 
-/* ---- durable per-user storage (Usion.storage, localStorage fallback) ---- */
+/* ---- durable per-user storage ----
+ * Three independent tiers: Usion.storage (database-backed), localStorage (survives an
+ * instant exit because the write is synchronous) and Usion.cloud (server-side, cross-device).
+ * A read takes the first tier that answers and heals the others, so one of them coming back
+ * empty after a relaunch can no longer lose a setting.
+ */
 const Store = {
   prefix: (document.documentElement.dataset.game || 'game') + ':',
-  async get(k) { try { const v = await Usion.storage.get(this.prefix + k); if (v !== null && v !== undefined) return v; } catch (e) {} try { const s = localStorage.getItem(this.prefix + k); return s ? JSON.parse(s) : null; } catch (e) { return null; } },
-  set(k, v) { try { localStorage.setItem(this.prefix + k, JSON.stringify(v)); } catch (e) {} try { return Usion.storage.set(this.prefix + k, v).catch(() => {}); } catch (e) { return Promise.resolve(); } },
-  remove(k) { try { localStorage.removeItem(this.prefix + k); } catch (e) {} try { return Usion.storage.remove(this.prefix + k).catch(() => {}); } catch (e) { return Promise.resolve(); } },
+  mem: {},
+  _call(path, method) {
+    const args = Array.prototype.slice.call(arguments, 2);
+    try {
+      const api = Usion[path];
+      if (!api || typeof api[method] !== 'function') return Promise.resolve(null);
+      return Promise.resolve(api[method].apply(api, args)).catch(() => null);
+    } catch (e) { return Promise.resolve(null); }
+  },
+  _local(k) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch (e) { return null; } },
+  _has(v) { return v !== null && v !== undefined; },
+  async get(k) {
+    const key = this.prefix + k;
+    const plat = await this._call('storage', 'get', key);
+    const local = this._local(key);
+    let cloud = null;
+    if (!this._has(plat) && !this._has(local)) cloud = await this._call('cloud', 'get', key);
+    const v = this._has(plat) ? plat : this._has(local) ? local : cloud;
+    if (!this._has(v)) return this._has(this.mem[k]) ? this.mem[k] : null;
+    this.mem[k] = v;
+    if (!this._has(plat)) this._call('storage', 'set', key, v);      // heal the tiers that lost it
+    if (!this._has(local)) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {} }
+    return v;
+  },
+  set(k, v) {
+    const key = this.prefix + k;
+    this.mem[k] = v;
+    try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {}
+    const write = this._call('storage', 'set', key, v);
+    this._call('cloud', 'set', key, v);
+    return write.then(r => {
+      if (r === null) setTimeout(() => this._call('storage', 'set', key, v), 900);   // one quiet retry
+      return r;
+    });
+  },
+  remove(k) {
+    const key = this.prefix + k;
+    delete this.mem[k];
+    try { localStorage.removeItem(key); } catch (e) {}
+    this._call('cloud', 'remove', key);
+    return this._call('storage', 'remove', key);
+  },
 };
 
 /* ---- leaderboard: submit + render friends/global boards ---- */

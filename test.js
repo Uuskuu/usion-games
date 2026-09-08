@@ -79,6 +79,18 @@ const receipts = [];
     }));
     if (!/\bcur\b/.test(first.cls) || /\bbad\b/.test(first.cls)) fail('solo', 'first character is not the caret: ' + first.cls);
     if (first.acc !== '100%') fail('solo', 'accuracy at launch is ' + first.acc);
+    // the top-bar toggle switches the sentences too, mid-round
+    const mn = await page.evaluate(() => target);
+    await page.click('#langBtn');
+    await page.waitForTimeout(350);
+    const en = await page.evaluate(() => ({ t: target, tl, lang: I18N.lang }));
+    if (en.tl !== 'en' || en.lang !== 'en') fail('solo', 'toggle did not switch both languages');
+    if (!/[a-z]/i.test(en.t) || /[Ѐ-ӿ]/.test(en.t)) fail('solo', 'sentence stayed mongolian: ' + en.t);
+    await page.click('#langBtn');
+    await page.waitForTimeout(350);
+    const back = await page.evaluate(() => target);
+    if (!/[Ѐ-ӿ]/.test(back)) fail('solo', 'sentence did not switch back: ' + back);
+    if (back === mn && en.t === mn) fail('solo', 'the round never rebuilt its text');
     await page.screenshot({ path: 'shots/type-rush-1-solo.png' });
     // keyboard open: the whole game must still fit above it, with nothing panned off screen
     await page.setViewportSize({ width: 390, height: 420 });
@@ -474,6 +486,74 @@ const receipts = [];
     const real = errors.filter(e => !/ERR_FAILED|mongolai/.test(e));
     if (real.length) fail('pay-resilience', 'console: ' + real.join(' | ').slice(0, 200));
     if (failures === before) ok('payment resilience', 'unlocked despite a bare reply and a dead settle endpoint');
+    await ctx.close();
+  }
+
+  /* ---------- 7. settings survive leaving and re-entering the game ---------- */
+  {
+    const before = failures;
+    // storage tiers backed by localStorage so they persist across a reload, each switchable off
+    const PERSIST_SDK = `
+window.__calls=[];const P=v=>Promise.resolve(v);
+const off=k=>localStorage.getItem('kill:'+k)==='1';
+const tier=(ns)=>({
+  get(k){ if(off(ns))return P(null); const v=localStorage.getItem(ns+':'+k); return P(v===null?null:JSON.parse(v)); },
+  set(k,v){ if(off(ns))return P(null); localStorage.setItem(ns+':'+k,JSON.stringify(v)); return P({success:true}); },
+  remove(k){ localStorage.removeItem(ns+':'+k); return P({success:true}); }, keys(){return P([])}, clear(){return P({})}
+});
+window.Usion={config:{},
+ init(cb){const c={userId:'u1',userName:'T',theme:'dark',language:'mn',mode:'single'};this.config=c;setTimeout(()=>cb(c),20);return P(c);},
+ getLaunchParams(){return{mode:'single'}},getTheme(){return'dark'},getLanguage(){return'mn'},
+ user:{getId(){return'u1'},getName(){return'T'},getAvatar(){return null}},
+ storage:tier('plat'), cloud:tier('cloud'),
+ wallet:{requestPayment(){return P({success:false})},getBalance(){return P(0)},hasCredits(){return P(false)},onBalanceChange(){}},
+ leaderboard:{submit(){return P({success:true})},top(){return P([])},friends(){return P([])},me(){return P({score:null})}},
+ game:{connect(){return P(1)},join(){return P({})},isConnected(){return false},isMultiplayer(){return false},
+   action(){return P({})},realtime(){return P({})},invite(){return P({success:false})},reportResult(){return P({})},
+   requestSync(){},setState(){return P({})},saveState(){return false},loadState(){return null},
+   onJoined(){},onPlayerJoined(){},onPlayerLeft(){},onRoomAssigned(){},onAction(){},onRealtime(){},onSync(){},
+   onError(){},onConnectionState(){},onReconnected(){},onDisconnect(){},onReconnect(){},onPlayerConnection(){},
+   onGameFinished(){},onStateUpdate(){}},
+ releaseBackButton(){},claimBackButton(){},share(){},exit(){}};`;
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 780 } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', e => errors.push(e.message));
+    await page.route('https://usions.com/usion-sdk.js', r => r.fulfill({ contentType: 'application/javascript', body: PERSIST_SDK }));
+    await page.exposeFunction('__send', () => {});
+    await page.goto(URL);
+    await page.waitForTimeout(500);
+
+    // pick Hard, then leave and come back
+    await page.evaluate(() => openMenu());
+    await page.click('#lvlChips .chip[data-lvl="3"]');
+    await page.waitForTimeout(300);
+    if (await page.evaluate(() => lvl) !== 3) fail('settings', 'picking a level did not apply it');
+    const relaunch = async (label) => {
+      await page.reload();
+      await page.waitForTimeout(700);
+      const st = await page.evaluate(() => ({ lvl, limit: R.limit, on: document.querySelector('#lvlChips .chip.on').dataset.lvl }));
+      if (st.lvl !== 3 || st.limit !== 90 || st.on !== '3') fail('settings', `${label}: level came back as ${st.lvl} (limit ${st.limit}, chip ${st.on})`);
+      return st;
+    };
+    await relaunch('relaunch');
+    // the platform store comes back empty (what the device was doing) - localStorage carries it
+    await page.evaluate(() => localStorage.setItem('kill:plat', '1'));
+    await relaunch('platform store empty');
+    // and if the WebView also wipes localStorage, the cloud tier still has it
+    await page.evaluate(() => {
+      localStorage.setItem('kill:plat', '1');
+      Object.keys(localStorage).filter(k => k.indexOf('type-rush:') === 0).forEach(k => localStorage.removeItem(k));
+    });
+    await relaunch('local storage wiped');
+    // healing: with every tier readable again the platform store has been refilled
+    await page.evaluate(() => localStorage.removeItem('kill:plat'));
+    await page.reload();
+    await page.waitForTimeout(700);
+    const healed = await page.evaluate(() => localStorage.getItem('plat:type-rush:lvl'));
+    if (healed !== '3') fail('settings', 'the platform store was not healed, got ' + healed);
+    if (errors.length) fail('settings', 'console: ' + errors.join(' | ').slice(0, 200));
+    if (failures === before) ok('settings persist', 'level survives relaunch, an empty platform store and a wiped localStorage');
     await ctx.close();
   }
 
