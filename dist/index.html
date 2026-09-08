@@ -786,7 +786,7 @@ document.addEventListener('touchmove', e => { if (e.target.closest && e.target.c
 <script>
 I18N.register({
   mn:{title:'Хурдан бичээч',acc:'Нарийвчлал',time:'Цаг',start:'Эхлэх',again:'Дахин',settings:'Тохиргоо',close:'Хаах',
-      rules:'120 секундэд аль болох хурдан, зөв бич. Раунд бүр 5 өгүүлбэр: хоёр урт, нэг дунд, нэг урт, нэг тэмдэгт ихтэй богино.',
+      rules:'120 секундэд аль болох хурдан, зөв бич. Раунд бүр 5 өгүүлбэр: хоёр урт, хоёр дунд, нэг тэмдэгт ихтэй богино.',
       tapHint:'Дарж бичиж эхлээрэй',
       done:'Дууслаа! 🏁',timeUp:'Цаг дууслаа ⏱',
       result:'{w} WPM · {a}% нарийвчлал · {n}/{t} өгүүлбэр',newBest:'🎉 Шинэ дээд амжилт!',
@@ -813,7 +813,7 @@ I18N.register({
       chatPh:'Өөрийн үгээ бич…',invited:'Урилга илгээлээ',inviteFail:'Урих боломжгүй байна',
       joinedMsg:'{n} нэгдлээ',leftMsg:'{n} гарлаа',go:'ЭХЭЛ!',rush:'Эхнийх нь дууслаа — {n}с!'},
   en:{title:'Type Rush',acc:'Accuracy',time:'Time',start:'Start',again:'Play again',settings:'Settings',close:'Close',
-      rules:'Type as fast and accurately as you can in 120 seconds. Every round is five sentences: two long, one medium, one long, one short and symbol heavy.',
+      rules:'Type as fast and accurately as you can in 120 seconds. Every round is five sentences: two long, two medium, one short and symbol heavy.',
       tapHint:'Tap here to start typing',
       done:'Finished! 🏁',timeUp:"Time's up ⏱",
       result:'{w} WPM · {a}% accuracy · {n}/{t} sentences',newBest:'🎉 New best score!',
@@ -1191,8 +1191,8 @@ function lessonQueue(l){
   return [drillLine(l),drillLine(l),drillLine(l)];
 }
 /* One round: 120 seconds, five sentences, difficulty mixed the same way every time so
-   scores stay comparable — two easy, one medium, one easy, one hard. */
-const LIMIT=120,MIX=[1,1,2,1,3],SENTS=MIX.length,MAXW=250,GRACE=10;  // GRACE: seconds the rest get once someone finishes
+   scores stay comparable — two easy, two medium, one hard. */
+const LIMIT=120,MIX=[1,1,2,2,3],SENTS=MIX.length,MAXW=250,GRACE=10;  // GRACE: seconds the rest get once someone finishes
 let tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0,best=0;
 let phase='boot';                       // 'solo' | 'hall' | 'race' | 'end'
 let joinedRoom=null,myReady=false,paintQ=false,overtime=0,tab='race';
