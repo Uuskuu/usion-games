@@ -243,53 +243,65 @@ const receipts = [];
     await ctx.close();
   }
 
-  /* ---------- 4. hard level: short, symbol-heavy sentences render and type exactly ---------- */
+  /* ---------- 4. every round is the same 120s mix of difficulties ---------- */
   {
     const before = failures;
-    const { ctx, page, errors } = await newPage(browser, { me: 'u1', name: 'Sym', mode: 'single', roomId: null, playerIds: ['u1'] });
+    const { ctx, page, errors } = await newPage(browser, { me: 'u1', name: 'Mix', mode: 'single', roomId: null, playerIds: ['u1'] });
     await page.exposeFunction('__send', () => {});
     await page.goto(URL);
     await page.waitForTimeout(400);
-    // english hard pool: brackets, digits, &, <, > — the escaping path
-    await page.evaluate(() => { tl = 'en'; lvl = 3; startSolo(); });
+    const mix = await page.evaluate(() => ({
+      limit: R.limit, n: R.sents, pattern: MIX.slice(),
+      // which pool each queued sentence actually came from
+      levels: queue.map(q => [1, 2, 3].find(l => TEXTS[tl][l].some(x => x[0] === q[0]))),
+      lens: queue.map(q => q[0].length),
+      dupes: queue.length - new Set(queue.map(q => q[0])).size,
+    }));
+    if (mix.limit !== 120) fail('mix', 'round limit is ' + mix.limit + 's');
+    if (mix.n !== 5) fail('mix', 'round has ' + mix.n + ' sentences');
+    if (mix.levels.join() !== mix.pattern.join()) fail('mix', `sentences came from levels ${mix.levels.join()} but the mix is ${mix.pattern.join()}`);
+    if (mix.dupes) fail('mix', 'the same sentence appeared twice in one round');
+    if (mix.lens[4] > 45) fail('mix', 'the symbol-heavy sentence is not short: ' + mix.lens[4]);
+    if (mix.lens[0] < 45) fail('mix', 'the opening sentence is not a long one: ' + mix.lens[0]);
+    // no level picker anywhere any more
+    await page.evaluate(() => openMenu());
     await page.waitForTimeout(200);
+    if (await page.$('#lvlChips')) fail('mix', 'the level picker is still in the settings panel');
+    await page.screenshot({ path: 'shots/type-rush-10-settings.png' });
+    await page.evaluate(() => startSolo());
+    await page.waitForTimeout(250);
+
+    // english, so the symbol-heavy sentence exercises the & < > escaping too
+    await page.evaluate(() => { setTextLang('en'); });
+    await page.waitForTimeout(300);
     const n = await page.evaluate(() => R.sents);
-    if (n !== 5) fail('hard', 'sentence count=' + n);
-    const lens = await page.evaluate(() => queue.map(q => q[0].length));
-    if (Math.max(...lens) > 45) fail('hard', 'hard sentences are not short: ' + lens.join(','));
     for (let i = 0; i < n; i++) {
       // what the player reads must be exactly what they have to type (no &amp; leaking through)
       const [shown, want] = await page.evaluate(() => [document.getElementById('text').textContent, target]);
-      if (shown !== want) fail('hard', `rendered "${shown}" != target "${want}"`);
+      if (shown !== want) fail('mix', `rendered "${shown}" != target "${want}"`);
       await page.fill('#inp', '');
-      await page.type('#inp', want, { delay: 3 });
+      await page.type('#inp', want, { delay: 2 });
     }
     await page.waitForTimeout(400);
-    if (await page.$eval('#endOv', e => e.hidden)) fail('hard', 'round did not finish');
+    if (await page.$eval('#endOv', e => e.hidden)) fail('mix', 'round did not finish');
     const acc = await page.evaluate(() => +document.getElementById('acc').textContent.replace('%', ''));
-    if (acc !== 100) fail('hard', 'typing the exact text scored ' + acc + '% accuracy');
-    await page.screenshot({ path: 'shots/type-rush-9-hard.png' });
-    // a phone keyboard opens unshifted: typing the sentence in lower case must still be clean
-    await page.evaluate(() => { tl = 'en'; lvl = 1; startSolo(); });
-    await page.waitForTimeout(200);
-    const nLower = await page.evaluate(() => R.sents);
-    for (let i = 0; i < nLower; i++) {
+    if (acc !== 100) fail('mix', 'typing the exact text scored ' + acc + '% accuracy');
+    await page.screenshot({ path: 'shots/type-rush-9-mix.png' });
+
+    // a phone keyboard opens unshifted: typing in lower case must still be clean
+    await page.evaluate(() => startSolo());
+    await page.waitForTimeout(250);
+    for (let i = 0; i < n; i++) {
       const want = await page.evaluate(() => target);
       await page.fill('#inp', '');
-      await page.type('#inp', want.toLowerCase(), { delay: 3 });
+      await page.type('#inp', want.toLowerCase(), { delay: 2 });
     }
     await page.waitForTimeout(300);
     const lowerAcc = await page.evaluate(() => +document.getElementById('acc').textContent.replace('%', ''));
-    if (lowerAcc !== 100) fail('hard', 'lower-case typing scored ' + lowerAcc + '% (missed Shift should not count)');
-    if (await page.$eval('#endOv', e => e.hidden)) fail('hard', 'lower-case round did not finish');
-    // the settings panel explains what the levels mean
-    await page.evaluate(() => { markChips(); openMenu(); });
-    await page.waitForTimeout(250);
-    const help = await page.$eval('.lvlhelp', e => e.textContent.trim());
-    if (!help) fail('hard', 'level help line is empty');
-    await page.screenshot({ path: 'shots/type-rush-10-levels.png' });
-    if (errors.length) fail('hard', 'console: ' + errors.join(' | ').slice(0, 300));
-    if (failures === before) ok('hard level', `sentences=${n} maxLen=${Math.max(...lens)} acc=${acc}%`);
+    if (lowerAcc !== 100) fail('mix', 'lower-case typing scored ' + lowerAcc + '% (missed Shift should not count)');
+    if (await page.$eval('#endOv', e => e.hidden)) fail('mix', 'lower-case round did not finish');
+    if (errors.length) fail('mix', 'console: ' + errors.join(' | ').slice(0, 300));
+    if (failures === before) ok('difficulty mix', `120s, levels ${mix.levels.join('-')}, lengths ${mix.lens.join('/')}`);
     await ctx.close();
   }
 
@@ -524,16 +536,18 @@ window.Usion={config:{},
     await page.goto(URL);
     await page.waitForTimeout(500);
 
-    // pick Hard, then leave and come back
-    await page.evaluate(() => openMenu());
-    await page.click('#lvlChips .chip[data-lvl="3"]');
+    // switch to the Practice tab, then leave and come back
+    await page.click('[data-tab="drill"]');
     await page.waitForTimeout(300);
-    if (await page.evaluate(() => lvl) !== 3) fail('settings', 'picking a level did not apply it');
+    if (await page.evaluate(() => tab) !== 'drill') fail('settings', 'switching tab did not apply');
     const relaunch = async (label) => {
       await page.reload();
       await page.waitForTimeout(700);
-      const st = await page.evaluate(() => ({ lvl, limit: R.limit, on: document.querySelector('#lvlChips .chip.on').dataset.lvl }));
-      if (st.lvl !== 3 || st.limit !== 90 || st.on !== '3') fail('settings', `${label}: level came back as ${st.lvl} (limit ${st.limit}, chip ${st.on})`);
+      const st = await page.evaluate(() => ({
+        tab, on: document.querySelector('#tabs .tab.on').dataset.tab,
+        lessons: !document.getElementById('lessons').hidden,
+      }));
+      if (st.tab !== 'drill' || st.on !== 'drill' || !st.lessons) fail('settings', `${label}: came back on ${st.tab} (chip ${st.on}, course shown ${st.lessons})`);
       return st;
     };
     await relaunch('relaunch');
@@ -550,10 +564,10 @@ window.Usion={config:{},
     await page.evaluate(() => localStorage.removeItem('kill:plat'));
     await page.reload();
     await page.waitForTimeout(700);
-    const healed = await page.evaluate(() => localStorage.getItem('plat:type-rush:lvl'));
-    if (healed !== '3') fail('settings', 'the platform store was not healed, got ' + healed);
+    const healed = await page.evaluate(() => localStorage.getItem('plat:type-rush:tab'));
+    if (healed !== '"drill"') fail('settings', 'the platform store was not healed, got ' + healed);
     if (errors.length) fail('settings', 'console: ' + errors.join(' | ').slice(0, 200));
-    if (failures === before) ok('settings persist', 'level survives relaunch, an empty platform store and a wiped localStorage');
+    if (failures === before) ok('settings persist', 'the chosen tab survives relaunch, an empty platform store and a wiped localStorage');
     await ctx.close();
   }
 

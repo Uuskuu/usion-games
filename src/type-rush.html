@@ -77,7 +77,6 @@
 .dots i.cur{background:var(--blue)}
 .prog{align-self:flex-end;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase}
 .author{color:var(--muted);font-size:12px;margin-top:9px;align-self:flex-end;font-style:italic}
-.lvlhelp{color:var(--muted);font-size:12px;line-height:1.45;margin:-6px 0 14px;text-align:left}
 /* keyboard open: shrink the chrome so the sentence keeps the room it needs */
 .short .topbar{padding-top:calc(5px + env(safe-area-inset-top));padding-bottom:5px}
 .short .topbar h1{font-size:14px}
@@ -147,13 +146,6 @@
   <div class="panel">
     <h2 data-i18n="title"></h2>
     <p data-i18n="rules"></p>
-    <div class="muted" data-i18n="lvl"></div>
-    <div class="chips tight" id="lvlChips">
-      <button class="chip on" data-lvl="1" data-i18n="l1"></button>
-      <button class="chip" data-lvl="2" data-i18n="l2"></button>
-      <button class="chip" data-lvl="3" data-i18n="l3"></button>
-    </div>
-    <p class="lvlhelp" data-i18n="lvlHelp"></p>
     <button class="btn" id="menuStart" data-i18n="start"></button>
     <div class="row" style="margin-top:8px"><button class="btn sec" id="menuInvite" data-i18n="invite"></button></div>
   </div>
@@ -173,12 +165,6 @@
     <h2 data-i18n="hall"></h2>
     <p id="hallHint"></p>
     <div class="roster" id="roster"></div>
-    <div class="muted" id="hallLvlLabel" data-i18n="lvl"></div>
-    <div class="chips tight" id="hallLvl">
-      <button class="chip on" data-lvl="1" data-i18n="l1"></button>
-      <button class="chip" data-lvl="2" data-i18n="l2"></button>
-      <button class="chip" data-lvl="3" data-i18n="l3"></button>
-    </div>
     <div class="row"><button class="btn" id="readyBtn"></button><button class="btn sec" id="inviteBtn" data-i18n="invite"></button></div>
     <div class="row" style="margin-top:8px"><button class="btn" id="startBtn" data-i18n="startRace"></button><button class="btn sec" id="botsBtn" data-i18n="withBots"></button></div>
   </div>
@@ -233,10 +219,8 @@
 <script>
 I18N.register({
   mn:{title:'Хурдан бичээч',acc:'Нарийвчлал',time:'Цаг',start:'Эхлэх',again:'Дахин',settings:'Тохиргоо',close:'Хаах',
-      rules:'Дэлгэц дээрх өгүүлбэрийг аль болох хурдан, зөв бич. Түвшин бүр өөр урт, өөр тэмдэгтийн нягтралтай.',
+      rules:'120 секундэд аль болох хурдан, зөв бич. Раунд бүр 5 өгүүлбэр: хоёр урт, нэг дунд, нэг урт, нэг тэмдэгт ихтэй богино.',
       tapHint:'Дарж бичиж эхлээрэй',
-      lvl:'Түвшин',l1:'Хялбар (120с)',l2:'Дунд (100с)',l3:'Хүнд (90с)',
-      lvlHelp:'Хялбар — 3 урт өгүүлбэр, цэг таслал бараг байхгүй. Дунд — 4 өгүүлбэр, ердийн цэг таслалтай. Хүнд — 5 богино өгүүлбэр, тоо, хаалт, тусгай тэмдэгт дүүрэн.',
       done:'Дууслаа! 🏁',timeUp:'Цаг дууслаа ⏱',
       result:'{w} WPM · {a}% нарийвчлал · {n}/{t} өгүүлбэр',newBest:'🎉 Шинэ дээд амжилт!',
       sent:'Өгүүлбэр {i}/{t}',score:'оноо',ghost:'Рекорд',
@@ -262,10 +246,8 @@ I18N.register({
       chatPh:'Өөрийн үгээ бич…',invited:'Урилга илгээлээ',inviteFail:'Урих боломжгүй байна',
       joinedMsg:'{n} нэгдлээ',leftMsg:'{n} гарлаа',go:'ЭХЭЛ!',rush:'Эхнийх нь дууслаа — {n}с!'},
   en:{title:'Type Rush',acc:'Accuracy',time:'Time',start:'Start',again:'Play again',settings:'Settings',close:'Close',
-      rules:'Type each sentence as fast and accurately as you can. Every level has its own length and punctuation density.',
+      rules:'Type as fast and accurately as you can in 120 seconds. Every round is five sentences: two long, one medium, one long, one short and symbol heavy.',
       tapHint:'Tap here to start typing',
-      lvl:'Level',l1:'Easy (120s)',l2:'Medium (100s)',l3:'Hard (90s)',
-      lvlHelp:'Easy - 3 long sentences, almost no punctuation. Medium - 4 sentences with ordinary punctuation. Hard - 5 short sentences full of digits, brackets and symbols.',
       done:'Finished! 🏁',timeUp:"Time's up ⏱",
       result:'{w} WPM · {a}% accuracy · {n}/{t} sentences',newBest:'🎉 New best score!',
       sent:'Sentence {i}/{t}',score:'points',ghost:'Record',
@@ -638,15 +620,16 @@ function drillLine(l){
   return [words.join(' '),'—'];
 }
 function lessonQueue(l){
-  if(l.k==='txt')return freshQueue(tl,2,2);
+  if(l.k==='txt')return pickFresh(tl,2,2);
   return [drillLine(l),drillLine(l),drillLine(l)];
 }
-const LIMITS={1:120,2:100,3:90},SENTSN={1:3,2:4,3:5},SENTS=5,MAXW=250,GRACE=10;  // GRACE: seconds the rest get once someone finishes
-function sentsFor(l){ return SENTSN[l]||SENTS; }
-let lvl=1,tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0,best=0;
+/* One round: 120 seconds, five sentences, difficulty mixed the same way every time so
+   scores stay comparable — two easy, one medium, one easy, one hard. */
+const LIMIT=120,MIX=[1,1,2,1,3],SENTS=MIX.length,MAXW=250,GRACE=10;  // GRACE: seconds the rest get once someone finishes
+let tl='mn',queue=[],idx=0,target='',typedChars=0,correctChars=0,errors=0,startT=0,timer=null,running=false,timeLeft=0,score=0,finished=0,best=0;
 let phase='boot';                       // 'solo' | 'hall' | 'race' | 'end'
 let joinedRoom=null,myReady=false,paintQ=false,overtime=0,tab='race';
-const R={seed:0,pending:0,mp:false,drill:false,endless:false,lesson:-1,sents:SENTS,limit:120,lvl:1,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
+const R={seed:0,pending:0,mp:false,drill:false,endless:false,lesson:-1,sents:SENTS,limit:LIMIT,tl:'mn',seats:[],bots:{},prog:{},cum:[0],hostT:null,hostTAt:0,ended:false,sendT:null,loop:null};
 const inp=$('#inp'),box=$('#typebox');
 
 /* ---------- guarded SDK calls (written literally so the publish pipeline detects multiplayer) ---------- */
@@ -657,13 +640,20 @@ function act(type,data){ try{ return Promise.resolve(Usion.game.action(type,data
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function poolOf(lang,level){ return (TEXTS[lang]&&TEXTS[lang][level])||TEXTS.mn[1]; }
 /* multiplayer: everybody derives the same five from the host's seed */
-function seededQueue(seed,lang,level,n){
-  const pool=poolOf(lang,level).slice(),r=mulberry32(seed>>>0);
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(r()*(i+1));const t=pool[i];pool[i]=pool[j];pool[j]=t;}
-  return pool.slice(0,n);
+/* multiplayer: everybody derives the same round from the host's seed */
+function seededQueue(seed,lang,mix){
+  const r=mulberry32(seed>>>0),used={},out=[];
+  (mix||MIX).forEach(level=>{
+    const pool=poolOf(lang,level),taken=used[level]||(used[level]=[]);
+    let i,guard=0;
+    do{ i=Math.floor(r()*pool.length); }while(taken.indexOf(i)>=0&&++guard<40);
+    taken.push(i);out.push(pool[i]);
+  });
+  return out;
 }
 /* solo: prefer sentences this player has not seen lately, so rounds keep feeling new */
-function freshQueue(lang,level,n){
+/* solo: prefer sentences this player has not seen lately, so rounds keep feeling new */
+function pickFresh(lang,level,n){
   const pool=poolOf(lang,level),key='seen'+lang+level;
   let seen=Records.get(key,[]);
   if(!Array.isArray(seen))seen=[];
@@ -674,6 +664,13 @@ function freshQueue(lang,level,n){
   Records.d[key]=seen.concat(pick).slice(-Math.max(n,pool.length-n));
   Records.save();
   return pick.map(i=>pool[i]);
+}
+function freshQueue(lang,mix){
+  const need={};
+  (mix||MIX).forEach(l=>{ need[l]=(need[l]||0)+1; });
+  const bank={};
+  for(const l in need)bank[l]=pickFresh(lang,+l,need[l]);
+  return (mix||MIX).map(l=>bank[l].shift());
 }
 
 /* ---------- typing round ---------- */
@@ -748,7 +745,7 @@ inp.addEventListener('input',()=>{
     idx++;
     if(R.drill){
       if(idx<queue.length){ load(); }
-      else if(R.endless){ queue=freshQueue(tl,lvl,sentsFor(lvl));R.sents=queue.length;idx=0;load(); }
+      else if(R.endless){ queue=freshQueue(tl);R.sents=queue.length;idx=0;load(); }
       else endLesson();
     }
     else if(idx>=R.sents){ if(R.mp)finishMine(); else end(true); }
@@ -787,7 +784,7 @@ function forceKeyboard(){
 }
 
 function startRound(cfg){
-  R.limit=cfg.limit;R.lvl=cfg.lvl;R.tl=cfg.tl;R.seed=cfg.seed;R.mp=!!cfg.mp;R.drill=!!cfg.drill;
+  R.limit=cfg.limit;R.tl=cfg.tl;R.seed=cfg.seed;R.mp=!!cfg.mp;R.drill=!!cfg.drill;
   R.endless=!!cfg.endless;R.lesson=cfg.lesson===undefined?-1:cfg.lesson;
   R.ended=false;R.hostT=null;overtime=0;
   queue=cfg.queue;R.sents=queue.length;R.cum=[0];queue.forEach(q=>R.cum.push(R.cum[R.cum.length-1]+q[0].length));
@@ -827,7 +824,7 @@ function startSolo(){
     R.seats.push('ghost');R.bots.ghost={wpm:ghostWpm,chars:0,i:0,score:0,done:false,ms:0};
   }
   R.seats.forEach(id=>{ R.prog[id]={f:0,w:0,s:0,d:0,gone:false}; });
-  startRound({queue:freshQueue(tl,lvl,sentsFor(lvl)),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false});
+  startRound({queue:freshQueue(tl),limit:LIMIT,tl,seed:0,mp:false});
 }
 
 /* ---------- practice: no clock, no score, sentences never run out ---------- */
@@ -835,7 +832,7 @@ function startDrill(){
   stopNetLoops();
   R.bots={};R.prog={};R.seats=[];
   $('#lessons').hidden=true;$('#playview').hidden=false;
-  startRound({queue:freshQueue(tl,lvl,sentsFor(lvl)),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false,drill:true,endless:true});
+  startRound({queue:freshQueue(tl),limit:LIMIT,tl,seed:0,mp:false,drill:true,endless:true});
   toast(I18N.t('drillHint'));
 }
 function startCurrent(){ tab==='drill'?showLessons():startSolo(); }
@@ -935,7 +932,7 @@ function startLesson(i){
   stopNetLoops();
   R.bots={};R.prog={};R.seats=[];
   $('#lessons').hidden=true;$('#playview').hidden=false;
-  startRound({queue:lessonQueue(l),limit:LIMITS[lvl],lvl,tl,seed:0,mp:false,drill:true,endless:false,lesson:i});
+  startRound({queue:lessonQueue(l),limit:LIMIT,tl,seed:0,mp:false,drill:true,endless:false,lesson:i});
 }
 function endLesson(){
   clearInterval(timer);clearInterval(R.loop);running=false;inp.disabled=true;inp.blur();phase='end';
@@ -969,7 +966,7 @@ function myInfo(){
   let name='',avatar=null;
   try{name=Usion.user.getName()||'';}catch(e){}
   try{avatar=Usion.user.getAvatar()||null;}catch(e){}
-  return {name,avatar,ready:myReady,lvl,tl};
+  return {name,avatar,ready:myReady,tl};
 }
 function shareInfo(){ const i=myInfo();Roster.set(Roster.myId,i);rt('player_info',i);paintHall(); }
 async function enterRoom(roomId){
@@ -1021,7 +1018,7 @@ function onRealtime(m){
     if(id===Roster.myId)return;
     Roster.see(id);
     Roster.set(id,{name:String(d.name||'').slice(0,24),avatar:d.avatar||null,ready:!!d.ready});
-    if(id===Roster.hostId()){ if(LIMITS[d.lvl])lvl=+d.lvl; if(d.tl==='en'||d.tl==='mn'){tl=d.tl;LESSONS=buildLessons(tl);} markChips(); }
+    if(id===Roster.hostId()&&(d.tl==='en'||d.tl==='mn')&&d.tl!==tl){ tl=d.tl;LESSONS=buildLessons(tl); }
     paintHall();
     if(isHost())rt('player_info',myInfo());          // late joiner missed everyone's earlier info
     return;
@@ -1085,7 +1082,6 @@ function paintHall(){
   $('#startBtn').hidden=!iAmHost;
   $('#botsBtn').hidden=!iAmHost;
   $('#startBtn').disabled=!Roster.allReady();
-  $('#hallLvl').hidden=!iAmHost;$('#hallLvlLabel').hidden=!iAmHost;
   $('#hallHint').textContent=iAmHost?(Roster.allReady()?I18N.t('hallWait'):I18N.t('hallNeed')):I18N.t('hallGuest');
   updateChatBtn();
 }
@@ -1100,7 +1096,7 @@ function hostStart(withBots){
     });
   }
   if(seats.length<2)return toast(I18N.t('needTwo'));
-  const d={seed:(Date.now()^Math.floor(Math.random()*1e9))>>>0,seats,bots,lvl,tl,limit:LIMITS[lvl],sents:sentsFor(lvl)};
+  const d={seed:(Date.now()^Math.floor(Math.random()*1e9))>>>0,seats,bots,tl,limit:LIMIT,mix:MIX};
   act('race_start',d);          // sequenced + stored: rejoins rebuild the race from it
   applyRaceStart(d);
 }
@@ -1115,11 +1111,10 @@ function applyRaceStart(d){
     R.bots[b.id]={wpm:b.wpm,chars:0,i:0,score:0,done:false,ms:0};
   });
   R.seats.forEach(id=>{ R.prog[id]={f:0,w:0,s:0,d:0,gone:false}; });
-  if(LIMITS[d.lvl])lvl=+d.lvl;
   if(d.tl==='en'||d.tl==='mn'){ tl=d.tl;LESSONS=buildLessons(tl); }
-  markChips();hideOverlays();
+  hideOverlays();
   countdown(()=>{
-    startRound({queue:seededQueue(d.seed,tl,lvl,d.sents||sentsFor(lvl)),limit:d.limit||LIMITS[lvl],lvl,tl,seed:d.seed,mp:true});
+    startRound({queue:seededQueue(d.seed,tl,d.mix),limit:d.limit||LIMIT,tl,seed:d.seed,mp:true});
     R.sendT=setInterval(sendMine,100);
     paintTrack();updateChatBtn();
   });
@@ -1329,7 +1324,7 @@ async function end(done){
   $('#endRecs').innerHTML=recRows(hl);
   $('#againBtn').textContent=I18N.t('again');
   $('#endOv').hidden=false;Sfx.win();
-  await submitScore({wpm:s.wpm,accuracy:s.acc,lvl,textLang:tl,sentences:finished,mode:'solo'},$('#endRecs'),hl);
+  await submitScore({wpm:s.wpm,accuracy:s.acc,textLang:tl,sentences:finished,mode:'solo'},$('#endRecs'),hl);
   Board.render($('#lb'));
 }
 async function showRaceEnd(st,win){
@@ -1357,7 +1352,7 @@ async function showRaceEnd(st,win){
   $('#againBtn').textContent=I18N.t('backHall');
   $('#endOv').hidden=false;
   won?Sfx.win():Sfx.ok();
-  await submitScore({wpm:s.wpm,accuracy:s.acc,lvl,textLang:tl,sentences:finished,mode:'race',place},$('#endRecs'),hl);
+  await submitScore({wpm:s.wpm,accuracy:s.acc,textLang:tl,sentences:finished,mode:'race',place},$('#endRecs'),hl);
   Board.render($('#lb'));
 }
 
@@ -1429,14 +1424,9 @@ async function inviteFriends(){
 
 /* ---------- UI wiring ---------- */
 function hideOverlays(){ ['menuOv','endOv','hallOv','recOv','netOv','lesOv','payOv'].forEach(i=>{$('#'+i).hidden=true;}); $('#chatSheet').hidden=true; }
-function markChips(){
-  $$('#lvlChips .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
-  $$('#hallLvl .chip').forEach(c=>c.classList.toggle('on',+c.dataset.lvl===lvl));
-
-}
 function setTextLang(v){
   if(v!=='en'&&v!=='mn'||v===tl)return;
-  tl=v;Store.set('tl',tl);markChips();
+  tl=v;Store.set('tl',tl);
   LESSONS=buildLessons(tl);                              // the drills follow the keyboard you type on
   if(!$('#lessons').hidden)lessonScreen();
   if(phase==='hall')return shareInfo();
@@ -1448,14 +1438,11 @@ function setTextLang(v){
     else startSolo();
   }
 }
-function pickLvl(v){ lvl=+v;Store.set('lvl',lvl);markChips();if(phase==='hall')shareInfo(); }
 function openMenu(){ clearInterval(timer);stopNetLoops();running=false;phase='end';hideOverlays();$('#menuOv').hidden=false; }
 function openRecords(){
   $('#recGrid').innerHTML=recRows(null);$('#recOv').hidden=false;Board.render($('#recLb'));
   refreshMe().then(()=>{ if(!$('#recOv').hidden)$('#recGrid').innerHTML=recRows(null); });
 }
-$('#lvlChips').onclick=e=>{ const c=e.target.closest('.chip');if(c)pickLvl(c.dataset.lvl); };
-$('#hallLvl').onclick=e=>{ const c=e.target.closest('.chip');if(c&&isHost())pickLvl(c.dataset.lvl); };
 $('#menuStart').onclick=()=>{ forceKeyboard();startCurrent(); };
 $('#setBtn').onclick=openMenu;
 $('#menuBtn2').onclick=openMenu;
@@ -1498,7 +1485,6 @@ $('#chatInp').addEventListener('keydown',e=>{ if(e.key==='Enter')$('#chatSend').
 document.addEventListener('keydown',e=>{ if(e.key==='Escape')$('#chatSheet').hidden=true; });
 window.addEventListener('langchange',()=>{
   setTextLang(I18N.lang);          // one control: the top bar toggle drives everything
-  markChips();
   if(phase==='hall')paintHall();
   if(!$('#lessons').hidden)lessonScreen();
   if(queue.length&&idx<queue.length&&running)load();
@@ -1532,12 +1518,10 @@ bootApp(async (cfg)=>{
   await loadPro();
   best=Records.get('best');
   refreshMe().then(()=>{ best=bestScore(); });   // non-blocking: never delay instant play
-  const l=await Store.get('lvl');if(l&&LIMITS[l])lvl=+l;
   tl=I18N.lang;
   const tb=await Store.get('tab');if(tb==='drill'||tb==='race')tab=tb;
   LESSONS=buildLessons(tl);
   paintTabs();
-  markChips();
   Roster.reset(cfg.playerIds&&cfg.playerIds.length?cfg.playerIds:[Roster.myId],Roster.myId);
   Roster.set(Roster.myId,myInfo());
   fitViewport();
