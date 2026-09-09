@@ -118,7 +118,7 @@
   <div class="typing">
     <div class="typebox" id="typebox">
       <div class="text" id="text"></div>
-      <input class="inp" id="inp" autofocus inputmode="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" aria-label="type here">
+      <input class="inp" id="inp" autofocus inputmode="text" enterkeyhint="done" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="type here">
       <div class="tap" id="tapHint" data-i18n="tapHint"></div>
     </div>
     <div class="author" id="author"></div>
@@ -663,20 +663,20 @@ let LESSONS=[],GROUPS=[];
 function buildLessons(lang){
   const src=FINGERS[lang]||FINGERS.mn;
   const out=[],groups=[];
-  let learned=[];
   src.forEach(g=>{
     const letters=[].concat(g.rows.home,g.rows.up,g.rows.low);
     const all=groupKeys(g);
     const grp={id:g.id,hand:g.h,finger:g.f,keys:all,from:out.length,count:0};
+    // a finger's lesson never reaches outside that finger: the pool builds up within the group
+    let sofar=[];
     [['home','home'],['up','up'],['low','low']].forEach(([key,kind])=>{
       const ks=g.rows[key];
       if(!ks.length)return;
-      learned=learned.concat(ks);
-      out.push({id:g.id+'_'+kind,k:kind,g:grp,keys:ks.slice(),pool:learned.slice(),caps:false});
+      sofar=sofar.concat(ks);
+      out.push({id:g.id+'_'+kind,k:kind,g:grp,keys:ks.slice(),pool:sofar.slice(),caps:false});
     });
     out.push({id:g.id+'_caps',k:'caps',g:grp,keys:letters.slice(),pool:letters.slice(),caps:true});
-    learned=learned.concat(g.rows.num);
-    out.push({id:g.id+'_rev',k:'rev',g:grp,keys:all.slice(),pool:learned.slice(),caps:false});
+    out.push({id:g.id+'_rev',k:'rev',g:grp,keys:all.slice(),pool:all.slice(),caps:false});
     grp.count=out.length-grp.from;
     groups.push(grp);
   });
@@ -760,14 +760,6 @@ function freshQueue(lang,mix){
 }
 
 /* ---------- typing round ---------- */
-/* A lesson exists to teach Shift, so there case must match exactly. Everywhere else a phone
-   keyboard makes Shift expensive enough that a case-only difference is not a typing mistake. */
-function strictCase(){ return R.drill&&R.lesson>=0; }
-function eq(a,b){
-  if(a===b)return true;
-  if(strictCase()||a==null||b==null)return false;
-  return String(a).toLowerCase()===String(b).toLowerCase();
-}
 function esc(ch){ return ch==='&'?'&amp;':(ch==='<'?'&lt;':(ch==='>'?'&gt;':ch)); }
 function render(){
   const val=inp.value,el=$('#text');
@@ -777,7 +769,7 @@ function render(){
   let html='';
   for(let i=0;i<target.length;i++){
     const ch=target[i];
-    let cls=i<val.length?(eq(val[i],ch)?'ok':'bad'):(i===val.length?'cur':'todo');
+    let cls=i<val.length?(val[i]===ch?'ok':'bad'):(i===val.length?'cur':'todo');
     if(i>=ws&&i<we)cls+=' w';
     html+='<span class="'+cls+'">'+esc(ch)+'</span>';
   }
@@ -821,11 +813,11 @@ inp.addEventListener('input',()=>{
   const v=inp.value,i=v.length-1;
   if(i>=0&&(inp._last||'').length<v.length){
     typedChars++;
-    if(!eq(v[i],target[i])){ errors++;flashErr();Sfx.bad();haptic(30); }
+    if(v[i]!==target[i]){ errors++;flashErr();Sfx.bad();haptic(30); }
     else correctChars++;
   }
   inp._last=v;render();stats();
-  if(eq(v,target)){
+  if(v===target){
     finished++;
     if(!R.drill)score+=Math.round(target.length*(1+Math.max(0,timeLeft)/R.limit));
     Sfx.ok();haptic(10);
@@ -878,7 +870,7 @@ function startRound(cfg){
   idx=0;typedChars=0;correctChars=0;errors=0;score=0;finished=0;timeLeft=R.drill?0:cfg.limit;
   hideOverlays();$('#track').hidden=!R.seats.length;$('#tbarw').className='timerbar';
   $('#tbarw').hidden=R.drill;$('#dots').hidden=R.drill&&R.endless;paintTabs();
-  inp.setAttribute('autocapitalize',R.lesson>=0?'off':'sentences');
+  inp.setAttribute('autocapitalize','off');   // the player decides every capital, not the IME
   inp.disabled=false;load();stats();$('#time').textContent=fmtTime(timeLeft);$('#tbar').style.width='100%';
   startT=performance.now();running=true;phase='race';
   clearInterval(timer);let last=performance.now();

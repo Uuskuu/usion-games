@@ -291,18 +291,26 @@ const receipts = [];
     if (acc !== 100) fail('mix', 'typing the exact text scored ' + acc + '% accuracy');
     await page.screenshot({ path: 'shots/type-rush-9-mix.png' });
 
-    // a phone keyboard opens unshifted: typing in lower case must still be clean
+    // case counts: typing a capitalised sentence in lower case is a mistake, not a pass
     await page.evaluate(() => startSolo());
     await page.waitForTimeout(250);
-    for (let i = 0; i < n; i++) {
-      const want = await page.evaluate(() => target);
-      await page.fill('#inp', '');
-      await page.type('#inp', want.toLowerCase(), { delay: 2 });
-    }
-    await page.waitForTimeout(300);
-    const lowerAcc = await page.evaluate(() => +document.getElementById('acc').textContent.replace('%', ''));
-    if (lowerAcc !== 100) fail('mix', 'lower-case typing scored ' + lowerAcc + '% (missed Shift should not count)');
-    if (await page.$eval('#endOv', e => e.hidden)) fail('mix', 'lower-case round did not finish');
+    const cased = await page.evaluate(() => {
+      const t = target;
+      return { t, hasUpper: /[A-ZА-ЯӨҮЁ]/.test(t) };
+    });
+    if (!cased.hasUpper) fail('mix', 'the first sentence has no capital to check: ' + cased.t);
+    await page.fill('#inp', '');
+    await page.type('#inp', cased.t.toLowerCase(), { delay: 2 });
+    await page.waitForTimeout(250);
+    const lower = await page.evaluate(() => ({
+      acc: +document.getElementById('acc').textContent.replace('%', ''),
+      bad: document.querySelectorAll('#text .bad').length,
+      advanced: idx,
+      autocap: inp.getAttribute('autocapitalize'),
+    }));
+    if (lower.acc === 100 || !lower.bad) fail('mix', 'lower case was accepted in a race (acc=' + lower.acc + ')');
+    if (lower.advanced !== 0) fail('mix', 'the sentence completed despite the wrong case');
+    if (lower.autocap !== 'off') fail('mix', 'the keyboard may still capitalise on its own: ' + lower.autocap);
     if (errors.length) fail('mix', 'console: ' + errors.join(' | ').slice(0, 300));
     if (failures === before) ok('difficulty mix', `120s, ${mix.tiers.join(' > ')}, lengths ${mix.lens.join('/')}`);
     await ctx.close();
@@ -467,6 +475,41 @@ const receipts = [];
     await page.waitForTimeout(300);
     if (await page.evaluate(() => R.drill)) fail('tabs', 'race tab did not leave practice');
     if (await page.$eval('#lessons', e => !e.hidden)) fail('tabs', 'lesson screen still showing in race mode');
+
+    // every drill line must stay inside the keys of its own finger, in both courses
+    const stray = await page.evaluate(() => {
+      const bad = [];
+      const sweep = () => {
+        LESSONS.forEach(l => {
+          if (l.k === 'txt') return;
+          const allowed = new Set([].concat(l.g.keys, l.g.keys.map(c => c.toUpperCase())));
+          for (let t = 0; t < 40 && bad.length < 6; t++) {
+            const line = drillLine(l)[0];
+            for (const ch of line) {
+              if (ch === ' ' || allowed.has(ch)) continue;
+              bad.push(`${tl} ${l.id}: "${ch}" is not one of ${l.g.keys.join('')}`);
+              break;
+            }
+          }
+        });
+      };
+      const started = tl;
+      sweep();
+      setTextLang(tl === 'mn' ? 'en' : 'mn');
+      sweep();
+      setTextLang(started);
+      return bad;
+    });
+    if (stray.length) fail('tabs', 'a drill used another finger: ' + stray.join(' | '));
+
+    // and a capitals lesson must actually produce capitals
+    const caps = await page.evaluate(() => {
+      const l = LESSONS.find(x => x.k === 'caps');
+      let seen = false;
+      for (let t = 0; t < 30 && !seen; t++) seen = /[A-ZА-ЯӨҮЁ]/.test(drillLine(l)[0]);
+      return seen;
+    });
+    if (!caps) fail('tabs', 'the capitals lesson never produced a capital letter');
     if (errors.length) fail('tabs', 'console: ' + errors.join(' | ').slice(0, 300));
     if (failures === before) ok('practice course', '8 fingers, lesson1=' + lesBest + 'wpm, freeTyped=' + after.typed + ', clock=' + after.t);
     await ctx.close();
